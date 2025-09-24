@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orbe_platform
+      POSTGRES_USER: orbe_user
+      POSTGRES_PASSWORD: orbe_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - orbe_network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - orbe_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=postgres://orbe_user:orbe_password@db:5432/orbe_platform
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-secret-key-change-in-production
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+    volumes:
+      - ./backend:/app
+      - media_files:/app/media
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - orbe_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - orbe_network
+
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A orbe_platform worker -l info
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=postgres://orbe_user:orbe_password@db:5432/orbe_platform
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-secret-key-change-in-production
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+    networks:
+      - orbe_network
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A orbe_platform beat -l info
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=postgres://orbe_user:orbe_password@db:5432/orbe_platform
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=your-secret-key-change-in-production
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+    networks:
+      - orbe_network
+
+volumes:
+  postgres_data:
+  media_files:
+
+networks:
+  orbe_network:
+    driver: bridge
