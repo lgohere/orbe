@@ -25,8 +25,8 @@ urlpatterns = [
     # Apps API endpoints
     path('api/users/', include('users.urls')),
     path('api/finance/', include('finance.urls')),
+    path('api/assistance/', include('assistance.urls')),
     # TODO: Uncomment as features are implemented
-    # path('api/assistance/', include('assistance.urls')),
     # path('api/feed/', include('feed.urls')),
 ]
 

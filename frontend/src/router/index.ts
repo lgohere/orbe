@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AppLayout from '@/layouts/AppLayout.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,6 +10,7 @@ const router = createRouter({
       name: 'home',
       redirect: '/login'
     },
+    // Public routes (no layout)
     {
       path: '/onboarding',
       name: 'onboarding',
@@ -36,15 +38,87 @@ const router = createRouter({
         title: 'Configurar Senha'
       }
     },
+    // Authenticated routes (with AppLayout)
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('../views/DashboardView.vue'),
-      meta: {
-        requiresAuth: true,
-        title: 'Dashboard'
-      }
+      path: '/',
+      component: AppLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('../views/DashboardView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: 'Dashboard'
+          }
+        },
+        {
+          path: 'finance',
+          name: 'finance',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Finanças'
+          }
+        },
+        {
+          path: 'cases',
+          name: 'cases',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Casos'
+          }
+        },
+        {
+          path: 'feed',
+          name: 'feed',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Feed'
+          }
+        },
+        {
+          path: 'members',
+          name: 'members',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Membros'
+          }
+        },
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Relatórios'
+          }
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Configurações'
+          }
+        },
+        {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          meta: {
+            requiresAuth: true,
+            title: 'Meu Perfil'
+          }
+        }
+      ]
     },
+    // 404 route
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',

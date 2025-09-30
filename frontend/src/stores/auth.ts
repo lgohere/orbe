@@ -43,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Computed
   const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const fullName = computed(() => user.value ? `${user.value.first_name} ${user.value.last_name}`.trim() : '')
   const isBoardMember = computed(() => user.value?.role === 'BOARD')
   const isFiscalCouncilMember = computed(() => user.value?.role === 'FISCAL_COUNCIL')
   const isAdmin = computed(() => user.value?.role === 'SUPER_ADMIN')
@@ -263,6 +264,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     // Computed
     isAuthenticated,
+    fullName,
     isBoardMember,
     isFiscalCouncilMember,
     isAdmin,

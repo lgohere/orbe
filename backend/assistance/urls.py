@@ -1,18 +1,15 @@
 """
-URLs for assistance app
+URL configuration for the assistance module.
 """
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views
+from .views import AssistanceCaseViewSet, AttachmentViewSet
 
 router = DefaultRouter()
-router.register(r'cases', views.AssistanceCaseViewSet)
-router.register(r'attachments', views.AttachmentViewSet)
+router.register(r'cases', AssistanceCaseViewSet, basename='assistancecase')
+router.register(r'attachments', AttachmentViewSet, basename='attachment')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('cases/<int:case_id>/approve/', views.ApproveCaseView.as_view(), name='approve-case'),
-    path('cases/<int:case_id>/reject/', views.RejectCaseView.as_view(), name='reject-case'),
-    path('pending-approval/', views.PendingApprovalView.as_view(), name='pending-approval'),
 ]
