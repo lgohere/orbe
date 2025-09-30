@@ -1,0 +1,17 @@
+{
+  "name": "ORBE - ONG Real Bem-Estar",
+  "short_name": "ORBE",
+  "description": "Organização social e educativa da Baixada Santista dedicada a assistência, desenvolvimento humano e fortalecimento comunitário",
+  "theme_color": "#304E69",
+  "background_color": "#DDEAF4",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

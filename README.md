@@ -1,6 +1,6 @@
 # ORBE Platform - MVP
 
-Plataforma digital para gestão da ONG ORBE - Organização social e educativa da Baixada Santista.
+Plataforma digital para gestão da ONG ORBE - ONG Real Bem-Estar.
 
 ## 🏗 Arquitetura
 

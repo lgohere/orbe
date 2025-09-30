@@ -1,0 +1,102 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "next": "Next",
+    "previous": "Previous",
+    "finish": "Finish",
+    "error": "Error",
+    "success": "Success",
+    "required": "This field is required",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "phone": "Mobile",
+    "address": "Address",
+    "city": "City",
+    "state": "State",
+    "zipCode": "ZIP Code",
+    "country": "Country",
+    "day": "Day",
+    "redirecting": "Redirecting to dashboard..."
+  },
+  "validation": {
+    "email": "Email must have a valid format",
+    "phone": "Invalid phone format",
+    "zipCode": "ZIP code must be in format 00000-000",
+    "acceptTerms": "Please accept all terms to continue."
+  },
+  "accessibility": {
+    "skipToMain": "Skip to main content"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "loginWithGoogle": "Login with Google",
+    "forgotPassword": "Forgot password?",
+    "welcomeBack": "Welcome back!",
+    "createAccount": "Create account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?"
+  },
+  "onboarding": {
+    "welcome": "Welcome to ORBE!",
+    "subtitle": "Let's set up your account in a few steps",
+    "step1": {
+      "title": "Personal Information",
+      "subtitle": "Tell us a bit about yourself",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "phone": "Mobile"
+    },
+    "step2": {
+      "title": "Where do you live?",
+      "subtitle": "We need your location for contact",
+      "detectLocation": "Detect my location",
+      "detectLocationHint": "Or fill in the fields manually below",
+      "city": "City",
+      "state": "State",
+      "country": "Country",
+      "cityPlaceholder": "e.g., New York",
+      "statePlaceholder": "e.g., New York",
+      "countryPlaceholder": "e.g., United States",
+      "geolocationNotSupported": "Your browser does not support geolocation",
+      "locationDetectedSuccess": "Location detected: {city}, {country}",
+      "locationPermissionDenied": "Location permission denied. Please fill manually.",
+      "locationUnavailable": "Location unavailable. Please fill manually.",
+      "locationTimeout": "Location detection timed out. Please fill manually.",
+      "locationDetectionFailed": "Failed to detect location. Please fill manually."
+    },
+    "step3": {
+      "title": "Preferences",
+      "subtitle": "Customize your experience",
+      "membershipDay": "Preferred day for membership fee",
+      "membershipDayHelper": "Choose the best day of the month for payment (1-28)",
+      "theme": "Theme",
+      "themeWhite": "Light",
+      "themeBlack": "Dark",
+      "language": "Language"
+    },
+    "step4": {
+      "title": "Terms and Conditions",
+      "subtitle": "To finish, accept our terms",
+      "termsText": "I have read and accept the",
+      "termsLink": "Terms of Use",
+      "privacyText": "I have read and accept the",
+      "privacyLink": "Privacy Policy",
+      "confirmText": "I confirm that the information provided is true"
+    },
+    "completed": {
+      "title": "Congratulations!",
+      "subtitle": "Your account has been set up successfully",
+      "message": "You can now access all ORBE platform features.",
+      "goToDashboard": "Go to Dashboard"
+    }
+  },
+  "organization": {
+    "name": "ORBE",
+    "fullName": "Real Well-Being NGO",
+    "description": "Social and educational organization from Baixada Santista dedicated to assistance, human development and community strengthening"
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "finish": "Finalizar",
+    "error": "Erro",
+    "success": "Sucesso",
+    "required": "Este campo é obrigatório",
+    "email": "E-mail",
+    "password": "Senha",
+    "name": "Nome",
+    "phone": "Celular",
+    "address": "Endereço",
+    "city": "Cidade",
+    "state": "Estado",
+    "zipCode": "CEP",
+    "country": "País",
+    "day": "Dia",
+    "redirecting": "Redirecionando para o dashboard..."
+  },
+  "validation": {
+    "email": "E-mail deve ter um formato válido",
+    "phone": "Formato de telefone inválido",
+    "zipCode": "CEP deve ter o formato 00000-000",
+    "acceptTerms": "Por favor, aceite todos os termos para continuar."
+  },
+  "accessibility": {
+    "skipToMain": "Pular para o conteúdo principal"
+  },
+  "auth": {
+    "login": "Entrar",
+    "register": "Cadastrar",
+    "loginWithGoogle": "Entrar com Google",
+    "forgotPassword": "Esqueceu a senha?",
+    "welcomeBack": "Bem-vindo de volta!",
+    "createAccount": "Criar conta",
+    "alreadyHaveAccount": "Já tem uma conta?",
+    "dontHaveAccount": "Não tem uma conta?"
+  },
+  "onboarding": {
+    "welcome": "Bem-vindo à ORBE!",
+    "subtitle": "Vamos configurar sua conta em poucos passos",
+    "step1": {
+      "title": "Informações Pessoais",
+      "subtitle": "Conte-nos um pouco sobre você",
+      "firstName": "Nome",
+      "lastName": "Sobrenome",
+      "phone": "Celular"
+    },
+    "step2": {
+      "title": "Onde você mora?",
+      "subtitle": "Precisamos da sua localização para contato",
+      "detectLocation": "Detectar minha localização",
+      "detectLocationHint": "Ou preencha manualmente os campos abaixo",
+      "city": "Cidade",
+      "state": "Estado",
+      "country": "País",
+      "cityPlaceholder": "Ex: São Paulo",
+      "statePlaceholder": "Ex: São Paulo",
+      "countryPlaceholder": "Ex: Brasil",
+      "geolocationNotSupported": "Seu navegador não suporta geolocalização",
+      "locationDetectedSuccess": "Localização detectada: {city}, {country}",
+      "locationPermissionDenied": "Permissão de localização negada. Preencha manualmente.",
+      "locationUnavailable": "Localização indisponível. Preencha manualmente.",
+      "locationTimeout": "Tempo esgotado para detectar localização. Preencha manualmente.",
+      "locationDetectionFailed": "Falha ao detectar localização. Preencha manualmente."
+    },
+    "step3": {
+      "title": "Preferências",
+      "subtitle": "Personalize sua experiência",
+      "membershipDay": "Dia preferencial para mensalidade",
+      "membershipDayHelper": "Escolha o melhor dia do mês para pagamento (1-28)",
+      "theme": "Tema",
+      "themeWhite": "Claro",
+      "themeBlack": "Escuro",
+      "language": "Idioma"
+    },
+    "step4": {
+      "title": "Termos e Condições",
+      "subtitle": "Para finalizar, aceite nossos termos",
+      "termsText": "Li e aceito os",
+      "termsLink": "Termos de Uso",
+      "privacyText": "Li e aceito a",
+      "privacyLink": "Política de Privacidade",
+      "confirmText": "Confirmo que as informações fornecidas são verdadeiras"
+    },
+    "completed": {
+      "title": "Parabéns!",
+      "subtitle": "Sua conta foi configurada com sucesso",
+      "message": "Agora você pode acessar todos os recursos da plataforma ORBE.",
+      "goToDashboard": "Ir para o Dashboard"
+    }
+  },
+  "organization": {
+    "name": "ORBE",
+    "fullName": "ONG Real Bem-Estar",
+    "description": "Organização social e educativa da Baixada Santista dedicada a assistência, desenvolvimento humano e fortalecimento comunitário"
+  }
+}

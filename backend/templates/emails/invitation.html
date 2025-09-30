@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bem-vindo à ORBE</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <!-- Email Container -->
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <!-- Main Card -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #304E69 0%, #5B7185 100%); padding: 40px 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                            <div style="background-color: white; width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+                                <!-- ORBE Icon -->
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16 17v2H2v-2s0-4 7-4 7 4 7 4m-3.5-9.5A3.5 3.5 0 1 0 9 11a3.5 3.5 0 0 0 3.5-3.5m3.44 5.5A5.32 5.32 0 0 1 18 17v2h4v-2s0-3.63-6.06-4M15 4a3.39 3.39 0 0 0 0 6.74 3.39 3.39 0 0 0 0-6.74z" fill="#304E69"/>
+                                </svg>
+                            </div>
+                            <h1 style="color: #ffffff; font-size: 32px; font-weight: 700; margin: 0 0 10px 0; letter-spacing: 3px;">ORBE</h1>
+                            <p style="color: #DDEAF4; font-size: 16px; margin: 0;">ONG Real Bem-Estar</p>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #304E69; font-size: 24px; font-weight: 600; margin: 0 0 20px 0;">
+                                🎉 Bem-vindo(a) à ORBE!
+                            </h2>
+
+                            <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Olá <strong>{{ first_name }}</strong>,
+                            </p>
+
+                            <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                É com grande alegria que damos as boas-vindas a você como membro da <strong>ORBE - ONG Real Bem-Estar</strong>! Sua participação é fundamental para fortalecer nossa missão de promover inclusão social, saúde, qualidade de vida e prosperidade econômica em nossa comunidade.
+                            </p>
+
+                            <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                Para ativar sua conta e acessar a plataforma ORBE, você precisa criar sua senha pessoal. Clique no botão abaixo para começar:
+                            </p>
+
+                            <!-- CTA Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="text-align: center; padding: 0 0 30px 0;">
+                                        <a href="{{ activation_link }}" style="background: linear-gradient(135deg, #C79657 0%, #D4A574 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 50px; font-size: 18px; font-weight: 600; display: inline-block; box-shadow: 0 4px 6px rgba(199, 150, 87, 0.3); transition: transform 0.2s;">
+                                            Criar Minha Senha
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Info Box -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #DDEAF4; border-left: 4px solid #C79657; border-radius: 8px; margin: 0 0 30px 0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <p style="color: #304E69; font-size: 14px; margin: 0 0 10px 0; font-weight: 600;">
+                                            ⏰ Link válido por 7 dias
+                                        </p>
+                                        <p style="color: #555555; font-size: 14px; line-height: 1.5; margin: 0;">
+                                            Por questões de segurança, este link expira em <strong>{{ expires_in }}</strong>. Caso o link expire, solicite um novo convite ao administrador.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="color: #555555; font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                                <strong>Seus dados de acesso:</strong><br>
+                                <strong>Email:</strong> {{ email }}<br>
+                                <strong>Nome:</strong> {{ first_name }} {{ last_name }}
+                            </p>
+
+                            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+
+                            <p style="color: #555555; font-size: 14px; line-height: 1.6; margin: 0;">
+                                Se você não conseguir clicar no botão, copie e cole o link abaixo em seu navegador:
+                            </p>
+                            <p style="color: #C79657; font-size: 13px; word-break: break-all; margin: 10px 0 0 0;">
+                                {{ activation_link }}
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f8f8; padding: 30px; text-align: center; border-radius: 0 0 12px 12px; border-top: 1px solid #e0e0e0;">
+                            <p style="color: #304E69; font-size: 16px; font-weight: 600; margin: 0 0 15px 0;">
+                                ORBE - ONG Real Bem-Estar
+                            </p>
+                            <p style="color: #888888; font-size: 14px; line-height: 1.5; margin: 0 0 15px 0;">
+                                Organização social e educativa da Baixada Santista<br>
+                                Praia Grande/SP - Brasil
+                            </p>
+                            <p style="color: #888888; font-size: 12px; margin: 0 0 15px 0;">
+                                Fundada em 20 de dezembro de 2021
+                            </p>
+
+                            <!-- Social Links (placeholder) -->
+                            <div style="margin: 20px 0 0 0;">
+                                <p style="color: #888888; font-size: 12px; margin: 0;">
+                                    © 2025 ORBE. Todos os direitos reservados.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+
+                </table>
+
+                <!-- Security Notice -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 20px auto 0;">
+                    <tr>
+                        <td style="text-align: center;">
+                            <p style="color: #888888; font-size: 12px; line-height: 1.5; margin: 0;">
+                                🔒 Este é um email automático e confidencial. Se você não solicitou este cadastro, por favor ignore esta mensagem ou entre em contato com nosso suporte.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

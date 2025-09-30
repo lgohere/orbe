@@ -1,0 +1,50 @@
+{
+  "name": "orbe-platform-frontend",
+  "version": "1.0.0",
+  "description": "Frontend da Plataforma ORBE - ONG de assistência social",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@fontsource/poppins": "^5.2.7",
+    "@mdi/font": "^7.4.47",
+    "axios": "^1.6.8",
+    "date-fns": "^3.6.0",
+    "pinia": "^2.1.7",
+    "qrcode": "^1.5.3",
+    "vee-validate": "^4.12.6",
+    "vue": "^3.4.21",
+    "vue-i18n": "^9.10.2",
+    "vue-router": "^4.3.0",
+    "vuetify": "^3.5.17",
+    "yup": "^1.4.0"
+  },
+  "devDependencies": {
+    "@rushstack/eslint-patch": "^1.7.2",
+    "@types/node": "^20.11.30",
+    "@types/qrcode": "^1.5.5",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/eslint-config-prettier": "^8.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    "@vue/tsconfig": "^0.5.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-vue": "^9.24.0",
+    "prettier": "^3.2.5",
+    "typescript": "~5.4.3",
+    "vite": "^5.4.11",
+    "vite-plugin-vuetify": "^2.0.3",
+    "vue-tsc": "^2.0.7"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=10.0.0"
+  }
+}

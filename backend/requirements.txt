@@ -1,0 +1,44 @@
+# Django Core
+Django==4.2.7
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+django-environ==0.11.2
+
+# Authentication
+django-allauth==0.57.0
+dj-rest-auth==5.0.2
+
+# Database
+psycopg2-binary==2.9.9
+dj-database-url==2.1.0
+
+# Cache & Session
+redis>=4.5.2,<5.0.0
+django-redis==5.4.0
+
+# Background Tasks
+celery==5.3.4
+celery[redis]==5.3.4
+
+# File Storage
+django-storages==1.14.2
+boto3==1.34.0
+
+# API Documentation
+drf-spectacular==0.26.5
+
+# Image Processing
+Pillow==10.1.0
+
+# Utilities
+python-decouple==3.8
+django-extensions==3.2.3
+
+# Development
+django-debug-toolbar==4.2.0
+pytest==7.4.3
+pytest-django==4.7.0
+factory-boy==3.3.0
+
+# Security
+django-csp==3.7

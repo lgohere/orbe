@@ -1,0 +1,232 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Custom Properties for Theme Support */
+:root {
+  /* White Theme Variables */
+  --orbe-bg-primary: #DDEAF4;
+  --orbe-bg-secondary: #FFFFFF;
+  --orbe-text-primary: #304E69;
+  --orbe-text-secondary: #000000;
+  --orbe-accent: #C79657;
+
+  /* Component Variables */
+  --orbe-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --orbe-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --orbe-border-radius: 0.5rem;
+  --orbe-transition: all 0.3s ease;
+}
+
+/* Dark Theme Variables */
+.dark {
+  --orbe-bg-primary: #304E69;
+  --orbe-bg-secondary: #5B7185;
+  --orbe-text-primary: #FFFFFF;
+  --orbe-text-secondary: #000000;
+  --orbe-accent: #C79657;
+}
+
+/* Base Styles */
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    @apply text-orbe-black-text-primary dark:text-orbe-black-text-primary;
+    @apply bg-orbe-white-bg-primary dark:bg-orbe-black-bg-primary;
+    @apply transition-colors duration-300;
+  }
+
+  /* Focus styles for accessibility */
+  *:focus {
+    @apply outline-none ring-2 ring-blue-500 ring-opacity-50;
+  }
+
+  /* Button focus for better accessibility */
+  button:focus,
+  a:focus {
+    @apply ring-2 ring-blue-500 ring-opacity-50;
+  }
+}
+
+/* Component Styles */
+@layer components {
+  /* Button Components */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
+    @apply transition-all duration-200 ease-in-out;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    min-height: 48px; /* Accessibility: minimum touch target */
+  }
+
+  .btn-primary {
+    @apply bg-orbe-white-accent dark:bg-orbe-black-accent;
+    @apply text-white hover:opacity-90;
+    @apply focus:ring-orbe-white-accent dark:focus:ring-orbe-black-accent;
+  }
+
+  .btn-secondary {
+    @apply bg-orbe-white-bg-secondary dark:bg-orbe-black-bg-secondary;
+    @apply text-orbe-white-text-primary dark:text-orbe-black-text-primary;
+    @apply border border-gray-300 dark:border-gray-600;
+    @apply hover:bg-gray-50 dark:hover:bg-gray-700;
+  }
+
+  .btn-outline {
+    @apply border-2 border-orbe-white-accent dark:border-orbe-black-accent;
+    @apply text-orbe-white-accent dark:text-orbe-black-accent;
+    @apply bg-transparent hover:bg-orbe-white-accent dark:hover:bg-orbe-black-accent;
+    @apply hover:text-white;
+  }
+
+  /* Card Components */
+  .card {
+    @apply bg-orbe-white-bg-secondary dark:bg-orbe-black-bg-secondary;
+    @apply border border-gray-200 dark:border-gray-700;
+    @apply rounded-lg shadow-sm;
+    @apply transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* Input Components */
+  .input {
+    @apply w-full px-3 py-2 text-base;
+    @apply bg-orbe-white-bg-secondary dark:bg-orbe-black-bg-secondary;
+    @apply border border-gray-300 dark:border-gray-600;
+    @apply rounded-lg;
+    @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    @apply placeholder-gray-500 dark:placeholder-gray-400;
+    @apply transition-all duration-200;
+    min-height: 48px; /* Accessibility: minimum touch target */
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply inline-flex items-center px-3 py-2 text-sm font-medium;
+    @apply text-orbe-white-text-primary dark:text-orbe-black-text-primary;
+    @apply rounded-md transition-colors duration-200;
+    @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+    min-height: 48px; /* Accessibility */
+  }
+
+  .nav-link-active {
+    @apply bg-orbe-white-accent dark:bg-orbe-black-accent;
+    @apply text-white;
+  }
+
+  /* Mobile-first responsive patterns */
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0 z-50;
+    @apply bg-orbe-white-bg-secondary dark:bg-orbe-black-bg-secondary;
+    @apply border-t border-gray-200 dark:border-gray-700;
+    @apply px-4 py-2;
+  }
+
+  /* Desktop sidebar */
+  .desktop-sidebar {
+    @apply hidden lg:flex lg:flex-col lg:w-64;
+    @apply bg-orbe-white-bg-secondary dark:bg-orbe-black-bg-secondary;
+    @apply border-r border-gray-200 dark:border-gray-700;
+  }
+
+  /* Feed styles */
+  .feed-card {
+    @apply card p-6 mb-4;
+    @apply border-l-4 border-orbe-white-accent dark:border-orbe-black-accent;
+  }
+
+  .feed-card-announcement {
+    @apply border-l-blue-500;
+  }
+
+  .feed-card-financial {
+    @apply border-l-green-500;
+  }
+
+  .feed-card-assistance {
+    @apply border-l-purple-500;
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  /* Gradients matching the theme */
+  .gradient-orbe-white {
+    background: linear-gradient(135deg, #DDEAF4 0%, #FFFFFF 100%);
+  }
+
+  .gradient-orbe-black {
+    background: linear-gradient(135deg, #304E69 0%, #5B7185 100%);
+  }
+
+  /* Text gradients */
+  .text-gradient-orbe {
+    @apply bg-gradient-to-r from-orbe-white-accent to-orange-500 bg-clip-text text-transparent;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  /* Mobile-specific utilities */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .high-contrast {
+      @apply border-2 border-black;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    .no-print {
+      @apply hidden;
+    }
+  }
+}
+
+/* Accessibility improvements */
+.sr-only {
+  @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+}
+
+/* Skip to main content link */
+.skip-link {
+  @apply absolute -top-40 left-6 z-50;
+  @apply bg-white text-black px-4 py-2 rounded;
+  @apply focus:top-6;
+  @apply transition-all duration-200;
+}
+
+/* Loading states */
+.loading {
+  @apply animate-pulse;
+}
+
+.loading-skeleton {
+  @apply bg-gray-200 dark:bg-gray-700 rounded;
+}

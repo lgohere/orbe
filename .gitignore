@@ -15,12 +15,39 @@ media/
 !*/migrations/__init__.py
 !*/migrations/0001_initial.py
 
-# Environment variables
+# Environment variables & Secrets
 .env
+.env.*
 .env.local
+.env.development
 .env.development.local
+.env.test
 .env.test.local
+.env.production
 .env.production.local
+*.env
+**/.env
+**/.env.*
+
+
+# Secret keys and tokens
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+secrets/
+.secrets/
+credentials.json
+token.json
+serviceAccountKey.json
+
+# API keys and configuration
+config/secrets.yml
+config/secrets.yaml
+.aws/
+.gcloud/
 
 # Virtual environment
 venv/
@@ -70,3 +97,99 @@ pids/
 # Static files
 staticfiles/
 static_root/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+*.dump
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis dump
+dump.rdb
+
+# Backup files
+*.bak
+*.backup
+*.old
+*~.nib
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.cache
+
+# Test files
+.tox/
+.nox/
+.pytest_cache/
+.coverage
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation build
+docs/_build/
+site/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Vim
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# Local configuration
+local.py
+local_settings.py
+*_local.py
+
+# n8n workflows (sensitive)
+n8n-exports/
+*.n8n.json
+
+# RabbitMQ
+rabbitmq-data/
+
+# Email templates (if containing sensitive info)
+# Note: Keep invitation.html but ignore test emails
+test-emails/
+*.eml
+
+DJANGO_COMMANDS.md
+/implementation-phases
+first-implementation-guidance.md
+ORBE-Technical-Analysis.md
+CLAUDE.md
+/.claude

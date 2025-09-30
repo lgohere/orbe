@@ -1,6 +1,6 @@
 # SOBRE
 
-A ORBE é uma organização social e educativa da Baixada Santista, sem fins lucrativos, dedicada a assistência, desenvolvimento humano e fortalecimento comunitário, funcionando como espaço de apoio e oportunidades para seus associados e para a sociedade. Foi criada em 20 de dezembro de 2021 em Praia Grande/SP, com atuação assistencial, filantrópica, social e educativa.
+A ORBE (ONG Real Bem-Estar) é uma organização social e educativa da Baixada Santista, sem fins lucrativos, dedicada a assistência, desenvolvimento humano e fortalecimento comunitário, funcionando como espaço de apoio e oportunidades para seus associados e para a sociedade. Foi criada em 20 de dezembro de 2021 em Praia Grande/SP, com atuação assistencial, filantrópica, social e educativa.
 
 ## OBJETIVOS
 
