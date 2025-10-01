@@ -28,7 +28,7 @@ media/
 *.env
 **/.env
 **/.env.*
-
+create_superuser.py
 
 # Secret keys and tokens
 *.pem

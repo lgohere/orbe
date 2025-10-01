@@ -16,10 +16,14 @@ class User(AbstractUser):
     """
 
     class Role(models.TextChoices):
-        SUPER_ADMIN = 'super_admin', _('Super Admin')
-        BOARD = 'board', _('Diretoria')
-        FISCAL_COUNCIL = 'fiscal_council', _('Conselho Fiscal')
-        MEMBER = 'member', _('Membro')
+        SUPER_ADMIN = 'SUPER_ADMIN', _('Super Admin')
+        BOARD = 'BOARD', _('Diretoria')
+        FISCAL_COUNCIL = 'FISCAL_COUNCIL', _('Conselho Fiscal')
+        MEMBER = 'MEMBER', _('Membro')
+
+    class RegistrationMethod(models.TextChoices):
+        MANUAL = 'manual', _('Manual (Staff/Admin)')
+        INVITED = 'invited', _('Invited (Email Token)')
 
     email = models.EmailField(_('email address'), unique=True)
     role = models.CharField(
@@ -27,6 +31,13 @@ class User(AbstractUser):
         max_length=20,
         choices=Role.choices,
         default=Role.MEMBER,
+    )
+    registration_method = models.CharField(
+        _('registration method'),
+        max_length=10,
+        choices=RegistrationMethod.choices,
+        default=RegistrationMethod.MANUAL,
+        help_text=_('How this user was registered')
     )
 
     # Override username field to use email
@@ -63,6 +74,21 @@ class User(AbstractUser):
     @property
     def can_create_cases(self):
         return self.role in [self.Role.BOARD, self.Role.SUPER_ADMIN]
+
+    @property
+    def is_staff_user(self):
+        """Check if user is staff (not regular member)"""
+        return self.role in [self.Role.SUPER_ADMIN, self.Role.BOARD, self.Role.FISCAL_COUNCIL]
+
+    @property
+    def requires_invitation(self):
+        """Check if user must be invited (cannot login directly)"""
+        return self.registration_method == self.RegistrationMethod.INVITED and self.role == self.Role.MEMBER
+
+    @property
+    def can_login_directly(self):
+        """Check if user can login with email/password directly"""
+        return self.registration_method == self.RegistrationMethod.MANUAL or self.is_staff_user
 
 
 class UserProfile(models.Model):

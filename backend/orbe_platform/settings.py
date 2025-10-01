@@ -64,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'orbe_platform.middleware.DisableCSRFForAPIMiddleware',  # Disable CSRF for /api/ endpoints
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -216,9 +217,15 @@ GOOGLE_OAUTH2_CLIENT_SECRET = config('GOOGLE_OAUTH2_CLIENT_SECRET', default='')
 
 # dj-rest-auth
 REST_USE_JWT = False
+REST_SESSION_LOGIN = False  # Disable session-based login (use token only)
 REST_AUTH_REGISTER_SERIALIZERS = {
     'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
 }
+
+# Disable CSRF for API endpoints (using Token Authentication)
+# CSRF is not needed when using Token Authentication
+CSRF_COOKIE_HTTPONLY = False  # Allow frontend to read CSRF cookie if needed
+CSRF_USE_SESSIONS = False  # Don't tie CSRF to sessions
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')

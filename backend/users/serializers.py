@@ -32,9 +32,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
-            'full_name', 'role', 'is_active', 'date_joined', 'profile'
+            'full_name', 'role', 'registration_method', 'is_active', 'date_joined', 'profile'
         ]
-        read_only_fields = ['id', 'date_joined', 'is_active']
+        read_only_fields = ['id', 'date_joined', 'is_active', 'registration_method']
 
 
 class CustomRegisterSerializer(RegisterSerializer):
@@ -429,7 +429,8 @@ class PasswordSetupSerializer(serializers.Serializer):
             last_name=invitation.last_name,
             password=password,
             role=invitation.role,
-            is_active=True  # Account is immediately active
+            is_active=True,  # Account is immediately active
+            registration_method=User.RegistrationMethod.INVITED  # Mark as invited user
         )
 
         # Create verified email address for allauth compatibility

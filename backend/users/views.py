@@ -119,7 +119,7 @@ class OnboardingStatusView(generics.RetrieveAPIView):
 
 
 class PreferencesView(generics.UpdateAPIView):
-    """Update user preferences (theme, language)"""
+    """Update user preferences (theme, language, location, contact)"""
 
     permission_classes = [IsAuthenticated]
 
@@ -138,12 +138,37 @@ class PreferencesView(generics.UpdateAPIView):
             if language in [choice[0] for choice in UserProfile.LanguageChoice.choices]:
                 profile.language_preference = language
 
+        # Update membership due day
+        if 'membership_due_day' in request.data:
+            due_day = request.data['membership_due_day']
+            if isinstance(due_day, int) and 1 <= due_day <= 28:
+                profile.membership_due_day = due_day
+
+        # Update contact information
+        if 'phone' in request.data:
+            profile.phone = request.data['phone']
+
+        # Update location information
+        if 'country' in request.data:
+            profile.country = request.data['country']
+
+        if 'city' in request.data:
+            profile.city = request.data['city']
+
+        if 'state' in request.data:
+            profile.state = request.data['state']
+
         profile.save()
 
         return Response({
             'message': _('Preferences updated successfully'),
             'theme_preference': profile.theme_preference,
             'language_preference': profile.language_preference,
+            'membership_due_day': profile.membership_due_day,
+            'phone': profile.phone,
+            'country': profile.country,
+            'city': profile.city,
+            'state': profile.state,
         })
 
 

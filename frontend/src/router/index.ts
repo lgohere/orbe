@@ -65,10 +65,39 @@ const router = createRouter({
         {
           path: 'cases',
           name: 'cases',
-          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          component: () => import('../views/cases/CasesListView.vue'),
           meta: {
             requiresAuth: true,
-            title: 'Casos'
+            title: 'Casos de Assistência'
+          }
+        },
+        {
+          path: 'cases/create',
+          name: 'case-create',
+          component: () => import('../views/cases/CaseFormView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: 'Novo Caso',
+            requiresBoard: true
+          }
+        },
+        {
+          path: 'cases/:id',
+          name: 'case-detail',
+          component: () => import('../views/cases/CaseDetailView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: 'Detalhes do Caso'
+          }
+        },
+        {
+          path: 'cases/:id/edit',
+          name: 'case-edit',
+          component: () => import('../views/cases/CaseFormView.vue'),
+          meta: {
+            requiresAuth: true,
+            title: 'Editar Caso',
+            requiresBoard: true
           }
         },
         {
@@ -110,7 +139,7 @@ const router = createRouter({
         {
           path: 'profile',
           name: 'profile',
-          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          component: () => import('../views/ProfileView.vue'),
           meta: {
             requiresAuth: true,
             title: 'Meu Perfil'
@@ -154,6 +183,14 @@ router.beforeEach(async (to, from, next) => {
 
   if (!requiresAuth && isAuthenticated && (to.name === 'login' || to.name === 'home')) {
     // Redirect authenticated users away from login page
+    next({ name: 'dashboard' })
+    return
+  }
+
+  // Check role-based permissions
+  const requiresBoard = to.meta.requiresBoard as boolean
+  if (requiresBoard && !authStore.canCreateCases) {
+    // Redirect non-Board users away from Board-only pages
     next({ name: 'dashboard' })
     return
   }
