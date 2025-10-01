@@ -23,10 +23,10 @@ function initializeTheme() {
   const savedTheme = localStorage.getItem('orbe-theme')
 
   if (savedTheme === 'orbe-black') {
-    theme.global.name.value = 'orbe-black'
+    theme.change('orbe-black')
   } else {
     // White theme is default as per ORBE documentation
-    theme.global.name.value = 'orbe-white'
+    theme.change('orbe-white')
   }
 }
 

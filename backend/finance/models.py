@@ -106,61 +106,110 @@ class MembershipFee(models.Model):
 
 class Donation(models.Model):
     """
-    Represents voluntary donations to ORBE.
-    Can be anonymous (user=null) and with optional amount.
+    Represents donation requests from members.
+    Members request donations for specific recipients/reasons.
+    Admin approves, attaches proof, and marks as completed.
     """
+    STATUS_CHOICES = [
+        ('pending_approval', _('Pendente de Aprovação')),
+        ('approved', _('Aprovado')),
+        ('rejected', _('Rejeitado')),
+        ('proof_attached', _('Comprovante Anexado')),
+        ('completed', _('Concluído')),
+    ]
+
+    # Requester (Member)
     user = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.CASCADE,
         related_name='donations',
-        verbose_name=_('User'),
-        help_text=_('Anonymous donations allowed (null)')
+        verbose_name=_('Requester'),
+        help_text=_('Member who requested the donation')
+    )
+
+    # Donation Details
+    recipient = models.CharField(
+        max_length=200,
+        verbose_name=_('Recipient'),
+        help_text=_('Who will receive the donation')
     )
     amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        null=True,
-        blank=True,
         validators=[MinValueValidator(0)],
         verbose_name=_('Amount'),
-        help_text=_('Donation amount (optional, can be null)')
+        help_text=_('Requested donation amount')
     )
-    message = models.TextField(
+    reason = models.TextField(
+        verbose_name=_('Reason'),
+        help_text=_('Why this donation is needed (e.g., groceries, rent, medical)')
+    )
+
+    # Workflow Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending_approval',
+        verbose_name=_('Status')
+    )
+
+    # Admin Actions
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
-        verbose_name=_('Message'),
-        help_text=_('Optional message from donor')
+        related_name='reviewed_donations',
+        verbose_name=_('Reviewed By'),
+        help_text=_('Admin/Board member who reviewed')
     )
-    is_anonymous = models.BooleanField(
-        default=False,
-        verbose_name=_('Anonymous Donation'),
-        help_text=_('Hide donor name in public feed')
+    rejection_reason = models.TextField(
+        blank=True,
+        verbose_name=_('Rejection Reason'),
+        help_text=_('Why this donation was rejected')
     )
-    donated_at = models.DateTimeField(
+    proof_document = models.FileField(
+        upload_to='donation_proofs/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name=_('Proof Document'),
+        help_text=_('Receipt/proof of donation (PDF)')
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name=_('Donated At')
+        verbose_name=_('Created At')
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Approved At')
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Completed At')
     )
 
     class Meta:
-        verbose_name = _('Donation')
-        verbose_name_plural = _('Donations')
-        ordering = ['-donated_at']
+        verbose_name = _('Donation Request')
+        verbose_name_plural = _('Donation Requests')
+        ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'donated_at']),
-            models.Index(fields=['donated_at']),
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['status', 'created_at']),
         ]
 
     def __str__(self):
-        donor = self.user.email if self.user else 'Anonymous'
-        amount_str = f"R${self.amount:.2f}" if self.amount else 'No amount'
-        return f"{donor} - {amount_str} - {self.donated_at.strftime('%Y-%m-%d')}"
+        return f"{self.user.email} → {self.recipient} - R${self.amount:.2f} - {self.get_status_display()}"
 
     @property
-    def donor_display_name(self):
-        """Get display name for donor (respects anonymity)"""
-        if self.is_anonymous:
-            return _('Anonymous Donor')
-        if self.user:
-            return f"{self.user.first_name} {self.user.last_name}".strip() or self.user.email
-        return _('Anonymous Donor')
+    def can_edit(self):
+        """Check if donation request can be edited (only pending)"""
+        return self.status == 'pending_approval'
+
+    @property
+    def can_delete(self):
+        """Check if donation request can be deleted (only pending)"""
+        return self.status == 'pending_approval'

@@ -107,22 +107,42 @@ const vuetify = createVuetify({
       'orbe-black': {
         dark: true,
         colors: {
-          primary: '#5B7185',
-          secondary: '#C79657',
-          accent: '#C79657',
-          background: '#304E69',
-          surface: '#5B7185',
-          'surface-variant': '#415A6B',
+          // Core Brand Colors
+          primary: '#7A9AB5',                // Lightened for better contrast on dark
+          secondary: '#D4A96A',              // Lightened gold for visibility
+          accent: '#D4A96A',
+
+          // Surface Colors
+          background: '#1A2733',             // Darker blue for better contrast
+          surface: '#2A3F52',                // Mid-tone surface
+          'surface-variant': '#344A5F',      // Lighter variant for elevation
+          'surface-bright': '#3D5266',       // Brightest surface for cards
+
+          // Text Colors (High Contrast for Dark Theme)
           'on-primary': '#FFFFFF',
-          'on-secondary': '#FFFFFF',
-          'on-surface': '#FFFFFF',
-          'on-background': '#FFFFFF',
-          'primary-darken-1': '#304E69',
-          'secondary-darken-1': '#A67A43',
-          success: '#4CAF50',
-          info: '#2196F3',
-          warning: '#FF9800',
-          error: '#F44336',
+          'on-secondary': '#1A1A1A',
+          'on-surface': '#F5F5F5',           // Very light text for maximum contrast
+          'on-background': '#FFFFFF',        // Pure white on dark background
+          'on-surface-variant': '#E0E0E0',   // Slightly dimmed for secondary text
+
+          // Semantic Text Colors
+          'text-primary': '#FFFFFF',         // Main headings - pure white
+          'text-secondary': '#E0E0E0',       // Body text - light grey
+          'text-tertiary': '#B0B0B0',        // Captions - medium-light grey
+
+          // State Colors
+          'primary-darken-1': '#5B7A95',
+          'secondary-darken-1': '#B8915A',
+          success: '#66BB6A',
+          info: '#42A5F5',
+          warning: '#FFA726',
+          error: '#EF5350',
+
+          // Status Colors (for badges, chips)
+          'success-lighten': '#81C784',
+          'info-lighten': '#64B5F6',
+          'warning-lighten': '#FFB74D',
+          'error-lighten': '#E57373',
         },
       },
     },

@@ -56,7 +56,7 @@ const router = createRouter({
         {
           path: 'finance',
           name: 'finance',
-          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          component: () => import('../views/finance/FinanceView.vue'),
           meta: {
             requiresAuth: true,
             title: 'Finanças'

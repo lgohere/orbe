@@ -196,7 +196,7 @@ SITE_ID = 1
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Changed from 'mandatory' for development
 ACCOUNT_ADAPTER = 'users.adapters.AccountAdapter'
 
 # Social Auth - Google
@@ -218,8 +218,14 @@ GOOGLE_OAUTH2_CLIENT_SECRET = config('GOOGLE_OAUTH2_CLIENT_SECRET', default='')
 # dj-rest-auth
 REST_USE_JWT = False
 REST_SESSION_LOGIN = False  # Disable session-based login (use token only)
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # Use email for login (not username)
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
 REST_AUTH_REGISTER_SERIALIZERS = {
     'REGISTER_SERIALIZER': 'users.serializers.CustomRegisterSerializer',
+}
+REST_AUTH_SERIALIZERS = {
+    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.LoginSerializer',
 }
 
 # Disable CSRF for API endpoints (using Token Authentication)

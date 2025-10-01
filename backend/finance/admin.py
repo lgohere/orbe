@@ -106,67 +106,105 @@ class MembershipFeeAdmin(admin.ModelAdmin):
 
 @admin.register(Donation)
 class DonationAdmin(admin.ModelAdmin):
-    """Admin configuration for Donation model"""
+    """Admin configuration for Donation Request model"""
     list_display = [
         'id',
-        'donor_name',
+        'requester_name',
+        'recipient',
         'amount_display',
-        'is_anonymous',
-        'donated_at',
-        'message_preview',
+        'status_badge',
+        'created_at',
+        'reviewed_by_name',
     ]
     list_filter = [
-        'is_anonymous',
-        'donated_at',
+        'status',
+        'created_at',
+        'approved_at',
     ]
     search_fields = [
         'user__email',
         'user__first_name',
         'user__last_name',
-        'message',
+        'recipient',
+        'reason',
     ]
     readonly_fields = [
-        'donated_at',
-        'donor_display_name',
+        'created_at',
+        'approved_at',
+        'completed_at',
+        'can_edit',
+        'can_delete',
     ]
     fieldsets = (
-        ('Donor Information', {
-            'fields': ('user', 'is_anonymous', 'donor_display_name')
+        ('Requester Information', {
+            'fields': ('user',)
         }),
-        ('Donation Details', {
-            'fields': ('amount', 'message')
+        ('Request Details', {
+            'fields': ('recipient', 'amount', 'reason')
         }),
-        ('Timestamp', {
-            'fields': ('donated_at',)
+        ('Status', {
+            'fields': ('status', 'reviewed_by', 'rejection_reason')
+        }),
+        ('Proof', {
+            'fields': ('proof_document',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'approved_at', 'completed_at'),
+            'classes': ('collapse',)
         }),
     )
-    date_hierarchy = 'donated_at'
-    ordering = ['-donated_at']
+    date_hierarchy = 'created_at'
+    ordering = ['-created_at']
+    actions = ['approve_requests', 'mark_as_completed']
 
-    @admin.display(description='Donor')
-    def donor_name(self, obj):
-        if obj.is_anonymous:
-            return format_html(
-                '<span style="color: gray; font-style: italic;">Anonymous</span>'
-            )
+    @admin.display(description='Requester')
+    def requester_name(self, obj):
         if obj.user:
             return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
         return '-'
 
+    @admin.display(description='Reviewed By')
+    def reviewed_by_name(self, obj):
+        if obj.reviewed_by:
+            return f"{obj.reviewed_by.first_name} {obj.reviewed_by.last_name}".strip() or obj.reviewed_by.email
+        return '-'
+
     @admin.display(description='Amount')
     def amount_display(self, obj):
-        if obj.amount:
-            return format_html(
-                '<span style="color: green; font-weight: bold;">R$ {:.2f}</span>',
-                obj.amount
-            )
         return format_html(
-            '<span style="color: gray; font-style: italic;">No amount specified</span>'
+            '<span style="color: green; font-weight: bold;">R$ {:.2f}</span>',
+            obj.amount
         )
 
-    @admin.display(description='Message')
-    def message_preview(self, obj):
-        if obj.message:
-            preview = obj.message[:50] + '...' if len(obj.message) > 50 else obj.message
-            return preview
-        return '-'
+    @admin.display(description='Status')
+    def status_badge(self, obj):
+        colors = {
+            'pending_approval': 'orange',
+            'approved': 'blue',
+            'rejected': 'red',
+            'proof_attached': 'purple',
+            'completed': 'green',
+        }
+        color = colors.get(obj.status, 'gray')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+
+    @admin.action(description='Approve selected requests')
+    def approve_requests(self, request, queryset):
+        updated = queryset.filter(status='pending_approval').update(
+            status='approved',
+            reviewed_by=request.user,
+            approved_at=timezone.now()
+        )
+        self.message_user(request, f'{updated} requests approved.')
+
+    @admin.action(description='Mark selected requests as completed')
+    def mark_as_completed(self, request, queryset):
+        updated = queryset.filter(status__in=['approved', 'proof_attached']).update(
+            status='completed',
+            completed_at=timezone.now()
+        )
+        self.message_user(request, f'{updated} requests marked as completed.')

@@ -73,6 +73,7 @@
                       placeholder="seu@email.com"
                       variant="outlined"
                       type="email"
+                      autocomplete="email"
                       required
                       prepend-inner-icon="mdi-email"
                       density="comfortable"
@@ -90,6 +91,7 @@
                       placeholder="Sua senha"
                       variant="outlined"
                       :type="showPassword ? 'text' : 'password'"
+                      autocomplete="current-password"
                       required
                       prepend-inner-icon="mdi-lock"
                       :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"

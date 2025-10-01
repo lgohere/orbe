@@ -93,3 +93,156 @@ p, .text-body-1, .text-body-2 {
   font-size: 0.875rem;
   opacity: 0.7;
 }
+
+/* =============================================================================
+   DARK THEME ENHANCEMENTS - High Contrast for Accessibility
+   ============================================================================= */
+
+/* Tooltips - Universal high contrast (WCAG AAA) */
+.v-tooltip .v-overlay__content {
+  background-color: #212121 !important;
+  color: #FFFFFF !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* DARK THEME ONLY - Enhanced Text Contrast */
+.v-theme--orbe-black .text-h1,
+.v-theme--orbe-black .text-h2,
+.v-theme--orbe-black .text-h3,
+.v-theme--orbe-black .text-h4,
+.v-theme--orbe-black .text-h5,
+.v-theme--orbe-black .text-h6 {
+  color: #FFFFFF !important;
+}
+
+.v-theme--orbe-black .text-body-1,
+.v-theme--orbe-black .text-body-2 {
+  color: #E0E0E0 !important;
+}
+
+.v-theme--orbe-black .text-caption {
+  color: #B0B0B0 !important;
+}
+
+/* DARK THEME - Cards */
+.v-theme--orbe-black .v-card {
+  background-color: #2A3F52 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+.v-theme--orbe-black .v-card-title {
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+
+.v-theme--orbe-black .v-card-text {
+  color: #E0E0E0 !important;
+}
+
+/* DARK THEME - Data Tables */
+.v-theme--orbe-black .v-data-table {
+  background-color: #2A3F52 !important;
+  color: #F5F5F5 !important;
+}
+
+.v-theme--orbe-black .v-data-table .v-data-table-header {
+  background-color: #344A5F !important;
+  color: #FFFFFF !important;
+  font-weight: 600 !important;
+}
+
+/* DARK THEME - Tabs */
+.v-theme--orbe-black .v-tab {
+  color: #B0B0B0 !important;
+}
+
+.v-theme--orbe-black .v-tab--selected {
+  color: #FFFFFF !important;
+}
+
+/* DARK THEME - Chips/Badges */
+.v-theme--orbe-black .v-chip {
+  font-weight: 500 !important;
+  filter: brightness(1.1);
+}
+
+/* DARK THEME - Primary color adjustments */
+.v-theme--orbe-black .text-primary {
+  color: #7A9AB5 !important;
+}
+
+.v-theme--orbe-black .bg-primary {
+  background-color: #7A9AB5 !important;
+}
+
+/* DARK THEME - Status colors */
+.v-theme--orbe-black .text-success {
+  color: #66BB6A !important;
+}
+
+.v-theme--orbe-black .text-info {
+  color: #42A5F5 !important;
+}
+
+.v-theme--orbe-black .text-warning {
+  color: #FFA726 !important;
+}
+
+.v-theme--orbe-black .text-error {
+  color: #EF5350 !important;
+}
+
+/* DARK THEME - Focus indicators */
+.v-theme--orbe-black *:focus-visible {
+  outline: 2px solid #7A9AB5 !important;
+  outline-offset: 2px !important;
+}
+
+/* DARK THEME - Disabled states */
+.v-theme--orbe-black .v-btn:disabled {
+  opacity: 0.5 !important;
+  filter: grayscale(0.5);
+}
+
+/* DARK THEME - Loading states */
+.v-theme--orbe-black .v-progress-circular,
+.v-theme--orbe-black .v-progress-linear {
+  color: #7A9AB5 !important;
+}
+
+/* DARK THEME - Icons */
+.v-theme--orbe-black .v-icon {
+  opacity: 0.9;
+}
+
+.v-theme--orbe-black .v-icon.text-grey,
+.v-theme--orbe-black .v-icon.text-grey-lighten-1,
+.v-theme--orbe-black .v-icon.text-grey-darken-1 {
+  color: #B0B0B0 !important;
+  opacity: 1;
+}
+
+/* DARK THEME - List items */
+.v-theme--orbe-black .v-list-item-title {
+  color: #F5F5F5 !important;
+  font-weight: 500 !important;
+}
+
+.v-theme--orbe-black .v-list-item-subtitle {
+  color: #B0B0B0 !important;
+}
+
+/* DARK THEME - Text emphasis */
+.v-theme--orbe-black .text-medium-emphasis {
+  color: #E0E0E0 !important;
+  opacity: 1 !important;
+}
+
+.v-theme--orbe-black .text-high-emphasis {
+  color: #FFFFFF !important;
+  opacity: 1 !important;
+}

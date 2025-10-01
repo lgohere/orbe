@@ -215,7 +215,7 @@ const menuItems = computed(() => {
 // Methods
 function toggleTheme() {
   const newTheme = theme.current.value.dark ? 'orbe-white' : 'orbe-black'
-  theme.global.name.value = newTheme
+  theme.change(newTheme)
 
   // Save preference to backend
   authStore.updatePreferences({
