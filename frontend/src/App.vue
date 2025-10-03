@@ -1,6 +1,25 @@
 <template>
   <v-app>
     <router-view />
+
+    <!-- Global Confirm Dialog -->
+    <ConfirmDialog
+      v-model="confirmState.isOpen"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :icon="confirmState.icon"
+      :variant="confirmState.variant"
+      :confirm-text="confirmState.confirmText"
+      :cancel-text="confirmState.cancelText"
+      :require-input="confirmState.requireInput"
+      :input-label="confirmState.inputLabel"
+      :input-placeholder="confirmState.inputPlaceholder"
+      :input-validation="confirmState.inputValidation"
+      :persistent="confirmState.persistent"
+      :loading="confirmState.loading"
+      @confirm="handleConfirm"
+      @cancel="handleCancel"
+    />
   </v-app>
 </template>
 
@@ -8,9 +27,12 @@
 import { onMounted } from 'vue'
 import { useTheme } from 'vuetify'
 import { useI18n } from 'vue-i18n'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import { useConfirm } from '@/composables/useConfirm'
 
 const theme = useTheme()
 const { locale } = useI18n()
+const { state: confirmState, handleConfirm, handleCancel } = useConfirm()
 
 onMounted(() => {
   // Initialize theme from localStorage or system preference

@@ -21,6 +21,20 @@
       </v-col>
     </v-row>
 
+    <!-- Tabs: Em Andamento / Concluídos -->
+    <v-tabs v-model="activeTab" bg-color="transparent" color="primary" class="mb-4" @update:model-value="onTabChange">
+      <v-tab value="in_progress">
+        <v-icon class="mr-2">mdi-progress-clock</v-icon>
+        Em Andamento
+        <v-chip size="small" class="ml-2" color="warning">{{ stats.in_progress }}</v-chip>
+      </v-tab>
+      <v-tab value="completed">
+        <v-icon class="mr-2">mdi-check-circle</v-icon>
+        Concluídos
+        <v-chip size="small" class="ml-2" color="success">{{ stats.completed }}</v-chip>
+      </v-tab>
+    </v-tabs>
+
     <!-- Filters & Search -->
     <v-card flat class="mb-4">
       <v-card-text>
@@ -40,7 +54,7 @@
           <v-col cols="12" md="3">
             <v-select
               v-model="statusFilter"
-              :items="statusOptions"
+              :items="currentStatusOptions"
               label="Status"
               variant="outlined"
               density="comfortable"
@@ -62,8 +76,8 @@
       </v-card-text>
     </v-card>
 
-    <!-- Stats Cards (for Board/Fiscal Council) -->
-    <v-row v-if="canSeeStats" class="mb-4">
+    <!-- Stats Cards (for Board/Fiscal Council/Admin) - Only for "In Progress" tab -->
+    <v-row v-if="canSeeStats && activeTab === 'in_progress'" class="mb-4">
       <v-col cols="12" sm="6" md="3">
         <v-card>
           <v-card-text>
@@ -87,7 +101,7 @@
                 <v-icon color="warning" size="24">mdi-clock-outline</v-icon>
               </v-avatar>
               <div>
-                <div class="text-h5 font-weight-bold">{{ stats.pending }}</div>
+                <div class="text-h5 font-weight-bold">{{ stats.pending_approval }}</div>
                 <div class="text-caption text-grey">Pendentes</div>
               </div>
             </div>
@@ -98,12 +112,12 @@
         <v-card>
           <v-card-text>
             <div class="d-flex align-center">
-              <v-avatar color="success-lighten-4" size="48" class="mr-3">
-                <v-icon color="success" size="24">mdi-check-circle-outline</v-icon>
+              <v-avatar color="info-lighten-4" size="48" class="mr-3">
+                <v-icon color="info" size="24">mdi-bank-transfer</v-icon>
               </v-avatar>
               <div>
-                <div class="text-h5 font-weight-bold">{{ stats.approved }}</div>
-                <div class="text-caption text-grey">Aprovados</div>
+                <div class="text-h5 font-weight-bold">{{ stats.awaiting_transfer }}</div>
+                <div class="text-caption text-grey">Aguard. Transf.</div>
               </div>
             </div>
           </v-card-text>
@@ -113,12 +127,12 @@
         <v-card>
           <v-card-text>
             <div class="d-flex align-center">
-              <v-avatar color="grey-lighten-3" size="48" class="mr-3">
-                <v-icon color="grey-darken-2" size="24">mdi-pencil-outline</v-icon>
+              <v-avatar color="purple-lighten-4" size="48" class="mr-3">
+                <v-icon color="purple" size="24">mdi-camera</v-icon>
               </v-avatar>
               <div>
-                <div class="text-h5 font-weight-bold">{{ stats.draft }}</div>
-                <div class="text-caption text-grey">Rascunhos</div>
+                <div class="text-h5 font-weight-bold">{{ stats.awaiting_member_proof }}</div>
+                <div class="text-caption text-grey">Aguard. Comprov.</div>
               </div>
             </div>
           </v-card-text>
@@ -137,12 +151,14 @@
       <!-- Empty State -->
       <v-card-text v-else-if="!loading && cases.length === 0" class="text-center py-12">
         <v-icon size="80" color="grey-lighten-1">mdi-folder-open-outline</v-icon>
-        <h3 class="text-h6 mt-4 mb-2">Nenhum caso encontrado</h3>
+        <h3 class="text-h6 mt-4 mb-2">
+          {{ activeTab === 'completed' ? 'Nenhum caso concluído' : 'Nenhum caso em andamento' }}
+        </h3>
         <p class="text-body-2 text-grey-darken-1 mb-4">
-          {{ search ? 'Tente ajustar os filtros de busca' : 'Ainda não há casos cadastrados' }}
+          {{ search ? 'Tente ajustar os filtros de busca' : 'Ainda não há casos nesta categoria' }}
         </p>
         <v-btn
-          v-if="canCreateCases && !search"
+          v-if="canCreateCases && !search && activeTab === 'in_progress'"
           color="primary"
           prepend-icon="mdi-plus"
           @click="$router.push('/cases/create')"
@@ -151,54 +167,81 @@
         </v-btn>
       </v-card-text>
 
-      <!-- Cases Table/Cards -->
+      <!-- Cases List - Grouped by Month/Year -->
       <v-card-text v-else>
-        <v-list lines="two">
-          <v-list-item
-            v-for="caseItem in cases"
-            :key="caseItem.id"
-            :to="`/cases/${caseItem.id}`"
-            class="mb-2"
-            border
-            rounded
-          >
-            <template #prepend>
-              <v-avatar :color="getStatusColor(caseItem.status)" size="48" class="mr-3">
-                <v-icon :color="getStatusIconColor(caseItem.status)" size="24">
-                  {{ getStatusIcon(caseItem.status) }}
-                </v-icon>
-              </v-avatar>
-            </template>
+        <div v-for="monthGroup in casesByMonth" :key="monthGroup.monthYear" class="mb-6">
+          <!-- Month/Year Header -->
+          <div class="d-flex align-center mb-3">
+            <v-icon color="primary" class="mr-2">mdi-calendar-month</v-icon>
+            <h2 class="text-h6 font-weight-bold text-primary text-capitalize">
+              {{ monthGroup.label }}
+            </h2>
+            <v-chip size="small" class="ml-3" color="primary" variant="outlined">
+              {{ monthGroup.cases.length }} caso(s)
+            </v-chip>
+          </div>
 
-            <v-list-item-title class="text-h6 font-weight-medium mb-1">
-              {{ caseItem.title }}
-            </v-list-item-title>
+          <!-- Cases for this month -->
+          <v-list lines="three">
+            <v-list-item
+              v-for="caseItem in monthGroup.cases"
+              :key="caseItem.id"
+              :to="`/cases/${caseItem.id}`"
+              class="mb-3"
+              border
+              rounded
+            >
+              <template #prepend>
+                <v-avatar :color="getStatusColor(caseItem.status)" size="56" class="mr-4">
+                  <v-icon :color="getStatusIconColor(caseItem.status)" size="28">
+                    {{ getStatusIcon(caseItem.status) }}
+                  </v-icon>
+                </v-avatar>
+              </template>
 
-            <v-list-item-subtitle class="text-body-2">
-              {{ truncateText(caseItem.public_description, 120) }}
-            </v-list-item-subtitle>
+              <v-list-item-title class="text-h6 font-weight-medium mb-1">
+                {{ caseItem.title }}
+              </v-list-item-title>
 
-            <template #append>
-              <div class="d-flex flex-column align-end">
-                <v-chip
+              <v-list-item-subtitle class="text-body-2 mb-2">
+                {{ truncateText(caseItem.public_description, 120) }}
+              </v-list-item-subtitle>
+
+              <!-- Progress indicator for in-progress cases -->
+              <div v-if="activeTab === 'in_progress'" class="mt-2">
+                <v-progress-linear
+                  :model-value="getProgressPercentage(caseItem.status)"
                   :color="getStatusColor(caseItem.status)"
-                  size="small"
-                  class="mb-2"
-                >
-                  {{ caseItem.status_display }}
-                </v-chip>
-                <div class="text-caption text-grey">
-                  <v-icon size="16" class="mr-1">mdi-currency-brl</v-icon>
-                  {{ formatCurrency(caseItem.total_value) }}
-                </div>
-                <div class="text-caption text-grey">
-                  <v-icon size="16" class="mr-1">mdi-paperclip</v-icon>
-                  {{ caseItem.attachment_count }} anexo(s)
+                  height="6"
+                  rounded
+                />
+                <div class="text-caption text-grey mt-1">
+                  {{ getProgressLabel(caseItem.status) }}
                 </div>
               </div>
-            </template>
-          </v-list-item>
-        </v-list>
+
+              <template #append>
+                <div class="d-flex flex-column align-end">
+                  <v-chip
+                    :color="getStatusColor(caseItem.status)"
+                    size="small"
+                    class="mb-2"
+                  >
+                    {{ caseItem.status_display }}
+                  </v-chip>
+                  <div class="text-caption text-grey mb-1">
+                    <v-icon size="16" class="mr-1">mdi-currency-brl</v-icon>
+                    R$ {{ Number(caseItem.total_value).toFixed(2) }}
+                  </div>
+                  <div class="text-caption text-grey">
+                    <v-icon size="16" class="mr-1">mdi-paperclip</v-icon>
+                    {{ caseItem.attachment_count }} anexo(s)
+                  </div>
+                </div>
+              </template>
+            </v-list-item>
+          </v-list>
+        </div>
 
         <!-- Pagination -->
         <v-pagination
@@ -215,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 interface Case {
@@ -240,8 +283,13 @@ interface CasesResponse {
 
 interface Stats {
   total: number
-  pending: number
-  approved: number
+  pending_approval: number
+  awaiting_bank_info: number
+  awaiting_transfer: number
+  awaiting_member_proof: number
+  pending_validation: number
+  completed: number
+  in_progress: number
   draft: number
 }
 
@@ -256,7 +304,18 @@ const orderBy = ref('-created_at')
 const currentPage = ref(1)
 const totalPages = ref(1)
 const totalCount = ref(0)
-const stats = ref<Stats>({ total: 0, pending: 0, approved: 0, draft: 0 })
+const activeTab = ref<'in_progress' | 'completed'>('in_progress')
+const stats = ref<Stats>({
+  total: 0,
+  pending_approval: 0,
+  awaiting_bank_info: 0,
+  awaiting_transfer: 0,
+  awaiting_member_proof: 0,
+  pending_validation: 0,
+  completed: 0,
+  in_progress: 0,
+  draft: 0
+})
 
 // Computed
 const canCreateCases = computed(() => authStore.canCreateCases)
@@ -266,14 +325,49 @@ const canSeeStats = computed(() =>
   authStore.user?.role === 'SUPER_ADMIN'
 )
 
-// Options
-const statusOptions = [
-  { title: 'Todos', value: null },
-  { title: 'Rascunho', value: 'draft' },
-  { title: 'Pendente', value: 'pending_approval' },
-  { title: 'Aprovado', value: 'approved' },
-  { title: 'Rejeitado', value: 'rejected' }
-]
+// Group cases by month/year
+const casesByMonth = computed(() => {
+  const grouped = new Map<string, Case[]>()
+
+  cases.value.forEach(caseItem => {
+    const date = new Date(caseItem.created_at)
+    const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+
+    if (!grouped.has(monthYear)) {
+      grouped.set(monthYear, [])
+    }
+    grouped.get(monthYear)!.push(caseItem)
+  })
+
+  // Sort by month/year descending (most recent first)
+  return Array.from(grouped.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([monthYear, cases]) => ({
+      monthYear,
+      label: formatMonthYear(monthYear),
+      cases
+    }))
+})
+
+// Status options based on active tab
+const currentStatusOptions = computed(() => {
+  if (activeTab.value === 'completed') {
+    return [
+      { title: 'Todos Concluídos', value: null }
+    ]
+  }
+
+  return [
+    { title: 'Todos em Andamento', value: null },
+    { title: 'Rascunho', value: 'draft' },
+    { title: 'Pendente de Aprovação', value: 'pending_approval' },
+    { title: 'Aguardando Dados Bancários', value: 'awaiting_bank_info' },
+    { title: 'Aguardando Transferência', value: 'awaiting_transfer' },
+    { title: 'Aguardando Comprovação', value: 'awaiting_member_proof' },
+    { title: 'Pendente de Validação', value: 'pending_validation' },
+    { title: 'Rejeitado', value: 'rejected' }
+  ]
+})
 
 const orderOptions = [
   { title: 'Mais Recentes', value: '-created_at' },
@@ -283,13 +377,32 @@ const orderOptions = [
 ]
 
 // Methods
+function onTabChange() {
+  statusFilter.value = null
+  currentPage.value = 1
+  loadCases()
+}
+
 async function loadCases() {
   loading.value = true
   try {
     const params = new URLSearchParams()
 
     if (search.value) params.append('search', search.value)
-    if (statusFilter.value) params.append('status', statusFilter.value)
+
+    // Filter by tab
+    if (activeTab.value === 'completed') {
+      params.append('status', 'completed')
+    } else {
+      // In progress: exclude completed
+      if (statusFilter.value) {
+        params.append('status', statusFilter.value)
+      } else {
+        // Show all except completed
+        params.append('exclude_status', 'completed')
+      }
+    }
+
     if (orderBy.value) params.append('ordering', orderBy.value)
     params.append('page', currentPage.value.toString())
 
@@ -304,9 +417,12 @@ async function loadCases() {
     const data: CasesResponse = await response.json()
     cases.value = data.results
     totalCount.value = data.count
-    totalPages.value = Math.ceil(data.count / 20) // Assuming 20 per page
+    totalPages.value = Math.ceil(data.count / 20)
 
-    // Load stats if user has permission
+    // Always load basic stats (in_progress and completed counts)
+    await loadBasicStats()
+
+    // Load detailed stats if user has permission
     if (canSeeStats.value) {
       await loadStats()
     }
@@ -317,10 +433,45 @@ async function loadCases() {
   }
 }
 
+async function loadBasicStats() {
+  try {
+    // Load in_progress count (all except completed)
+    const inProgressResponse = await fetch(`/api/assistance/cases/?exclude_status=completed`, {
+      headers: { 'Authorization': `Token ${authStore.token}` }
+    })
+    if (inProgressResponse.ok) {
+      const inProgressData = await inProgressResponse.json()
+      stats.value.in_progress = inProgressData.count
+    }
+
+    // Load completed count
+    const completedResponse = await fetch(`/api/assistance/cases/?status=completed`, {
+      headers: { 'Authorization': `Token ${authStore.token}` }
+    })
+    if (completedResponse.ok) {
+      const completedData = await completedResponse.json()
+      stats.value.completed = completedData.count
+    }
+
+    // Update total
+    stats.value.total = stats.value.in_progress + stats.value.completed
+  } catch (error) {
+    console.error('Error loading basic stats:', error)
+  }
+}
+
 async function loadStats() {
   try {
-    // Load counts for each status
-    const statuses = ['draft', 'pending_approval', 'approved', 'rejected']
+    const statuses = [
+      'draft',
+      'pending_approval',
+      'awaiting_bank_info',
+      'awaiting_transfer',
+      'awaiting_member_proof',
+      'pending_validation',
+      'completed'
+    ]
+
     const counts = await Promise.all(
       statuses.map(async (status) => {
         const response = await fetch(`/api/assistance/cases/?status=${status}`, {
@@ -333,8 +484,13 @@ async function loadStats() {
 
     stats.value = {
       draft: counts[0],
-      pending: counts[1],
-      approved: counts[2],
+      pending_approval: counts[1],
+      awaiting_bank_info: counts[2],
+      awaiting_transfer: counts[3],
+      awaiting_member_proof: counts[4],
+      pending_validation: counts[5],
+      completed: counts[6],
+      in_progress: counts[0] + counts[1] + counts[2] + counts[3] + counts[4] + counts[5],
       total: counts.reduce((sum, count) => sum + count, 0)
     }
   } catch (error) {
@@ -355,7 +511,11 @@ function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     'draft': 'grey-lighten-2',
     'pending_approval': 'warning',
-    'approved': 'success',
+    'awaiting_bank_info': 'blue-grey',
+    'awaiting_transfer': 'info',
+    'awaiting_member_proof': 'purple',
+    'pending_validation': 'deep-orange',
+    'completed': 'success',
     'rejected': 'error'
   }
   return colors[status] || 'grey'
@@ -365,7 +525,11 @@ function getStatusIconColor(status: string): string {
   const colors: Record<string, string> = {
     'draft': 'grey-darken-2',
     'pending_approval': 'warning-darken-2',
-    'approved': 'success-darken-2',
+    'awaiting_bank_info': 'blue-grey-darken-2',
+    'awaiting_transfer': 'info-darken-2',
+    'awaiting_member_proof': 'purple-darken-2',
+    'pending_validation': 'deep-orange-darken-2',
+    'completed': 'success-darken-2',
     'rejected': 'error-darken-2'
   }
   return colors[status] || 'grey'
@@ -375,18 +539,39 @@ function getStatusIcon(status: string): string {
   const icons: Record<string, string> = {
     'draft': 'mdi-pencil-outline',
     'pending_approval': 'mdi-clock-outline',
-    'approved': 'mdi-check-circle-outline',
+    'awaiting_bank_info': 'mdi-bank',
+    'awaiting_transfer': 'mdi-bank-transfer',
+    'awaiting_member_proof': 'mdi-camera-outline',
+    'pending_validation': 'mdi-shield-check-outline',
+    'completed': 'mdi-check-circle',
     'rejected': 'mdi-close-circle-outline'
   }
   return icons[status] || 'mdi-file-document-outline'
 }
 
-function formatCurrency(value: string): string {
-  const num = parseFloat(value)
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(num)
+function getProgressPercentage(status: string): number {
+  const progress: Record<string, number> = {
+    'draft': 10,
+    'pending_approval': 20,
+    'awaiting_bank_info': 35,
+    'awaiting_transfer': 50,
+    'awaiting_member_proof': 70,
+    'pending_validation': 85,
+    'completed': 100
+  }
+  return progress[status] || 0
+}
+
+function getProgressLabel(status: string): string {
+  const labels: Record<string, string> = {
+    'draft': 'Passo 1 de 6: Rascunho',
+    'pending_approval': 'Passo 2 de 6: Aguardando aprovação',
+    'awaiting_bank_info': 'Passo 3 de 6: Membro deve informar dados bancários',
+    'awaiting_transfer': 'Passo 4 de 6: Admin deve confirmar transferência',
+    'awaiting_member_proof': 'Passo 5 de 6: Membro deve enviar comprovantes',
+    'pending_validation': 'Passo 6 de 6: Admin validando comprovantes'
+  }
+  return labels[status] || ''
 }
 
 function truncateText(text: string, maxLength: number): string {
@@ -394,8 +579,25 @@ function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength) + '...'
 }
 
+function formatMonthYear(monthYear: string): string {
+  const [year, month] = monthYear.split('-')
+  const date = new Date(parseInt(year), parseInt(month) - 1)
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    month: 'long',
+    year: 'numeric'
+  }).format(date)
+}
+
 // Lifecycle
 onMounted(() => {
+  loadCases()
+})
+
+// Watch tab changes
+watch(activeTab, () => {
+  statusFilter.value = null
+  currentPage.value = 1
   loadCases()
 })
 </script>
@@ -409,5 +611,16 @@ onMounted(() => {
   background-color: rgba(var(--v-theme-primary), 0.05);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Month/Year group styling */
+.mb-6:not(:last-child) {
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 1.5rem;
+}
+
+/* Month header styling */
+h2.text-capitalize {
+  letter-spacing: 0.5px;
 }
 </style>

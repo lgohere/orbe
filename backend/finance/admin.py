@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
-from .models import MembershipFee, Donation
+from .models import MembershipFee, DonationRequest, VoluntaryDonation
 
 
 @admin.register(MembershipFee)
@@ -104,64 +104,138 @@ class MembershipFeeAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} fees marked as overdue.')
 
 
-@admin.register(Donation)
-class DonationAdmin(admin.ModelAdmin):
-    """Admin configuration for Donation Request model"""
+@admin.register(VoluntaryDonation)
+class VoluntaryDonationAdmin(admin.ModelAdmin):
+    """Admin configuration for Voluntary Donations (TO ORBE)"""
+    list_display = [
+        'id',
+        'donor_display',
+        'amount_display',
+        'is_anonymous',
+        'verified_badge',
+        'donated_at',
+    ]
+    list_filter = [
+        'is_anonymous',
+        'donated_at',
+        ('verified_by', admin.EmptyFieldListFilter),
+    ]
+    search_fields = [
+        'donor__email',
+        'donor__first_name',
+        'donor__last_name',
+        'message',
+    ]
+    readonly_fields = [
+        'donated_at',
+        'display_name',
+    ]
+    fieldsets = (
+        ('Donor Information', {
+            'fields': ('donor', 'is_anonymous', 'display_name')
+        }),
+        ('Donation Details', {
+            'fields': ('amount', 'message', 'payment_proof')
+        }),
+        ('Verification', {
+            'fields': ('verified_by', 'verified_at')
+        }),
+        ('Timestamps', {
+            'fields': ('donated_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    date_hierarchy = 'donated_at'
+    ordering = ['-donated_at']
+    actions = ['verify_donations']
+
+    @admin.display(description='Donor')
+    def donor_display(self, obj):
+        if obj.is_anonymous or not obj.donor:
+            return format_html('<em style="color: gray;">Anônimo</em>')
+        return f"{obj.donor.first_name} {obj.donor.last_name}".strip() or obj.donor.email
+
+    @admin.display(description='Amount')
+    def amount_display(self, obj):
+        return format_html(
+            '<span style="color: green; font-weight: bold;">R$ {:.2f}</span>',
+            obj.amount
+        )
+
+    @admin.display(description='Verified')
+    def verified_badge(self, obj):
+        if obj.is_verified:
+            return format_html(
+                '<span style="background-color: green; color: white; padding: 3px 10px; border-radius: 3px;">✓ Verificado</span>'
+            )
+        return format_html(
+            '<span style="background-color: orange; color: white; padding: 3px 10px; border-radius: 3px;">Pendente</span>'
+        )
+
+    @admin.action(description='Mark as verified')
+    def verify_donations(self, request, queryset):
+        updated = queryset.filter(verified_by__isnull=True).update(
+            verified_by=request.user,
+            verified_at=timezone.now()
+        )
+        self.message_user(request, f'{updated} donations verified.')
+
+
+@admin.register(DonationRequest)
+class DonationRequestAdmin(admin.ModelAdmin):
+    """Admin configuration for Donation Requests (FOR THIRD PARTIES)"""
     list_display = [
         'id',
         'requester_name',
-        'recipient',
+        'recipient_name',
         'amount_display',
+        'urgency_badge',
         'status_badge',
         'created_at',
         'reviewed_by_name',
     ]
     list_filter = [
         'status',
+        'urgency_level',
         'created_at',
         'approved_at',
     ]
     search_fields = [
-        'user__email',
-        'user__first_name',
-        'user__last_name',
-        'recipient',
+        'requested_by__email',
+        'requested_by__first_name',
+        'requested_by__last_name',
+        'recipient_name',
         'reason',
     ]
     readonly_fields = [
         'created_at',
         'approved_at',
-        'completed_at',
+        'updated_at',
         'can_edit',
         'can_delete',
     ]
     fieldsets = (
         ('Requester Information', {
-            'fields': ('user',)
+            'fields': ('requested_by',)
         }),
-        ('Request Details', {
-            'fields': ('recipient', 'amount', 'reason')
+        ('Beneficiary Details', {
+            'fields': ('recipient_name', 'recipient_description', 'amount', 'reason', 'urgency_level')
         }),
         ('Status', {
             'fields': ('status', 'reviewed_by', 'rejection_reason')
         }),
-        ('Proof', {
-            'fields': ('proof_document',)
-        }),
         ('Timestamps', {
-            'fields': ('created_at', 'approved_at', 'completed_at'),
+            'fields': ('created_at', 'approved_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     date_hierarchy = 'created_at'
     ordering = ['-created_at']
-    actions = ['approve_requests', 'mark_as_completed']
+    actions = ['approve_requests', 'reject_requests']
 
     @admin.display(description='Requester')
     def requester_name(self, obj):
-        if obj.user:
-            return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.email
-        return '-'
+        return f"{obj.requested_by.first_name} {obj.requested_by.last_name}".strip() or obj.requested_by.email
 
     @admin.display(description='Reviewed By')
     def reviewed_by_name(self, obj):
@@ -176,14 +250,27 @@ class DonationAdmin(admin.ModelAdmin):
             obj.amount
         )
 
+    @admin.display(description='Urgency')
+    def urgency_badge(self, obj):
+        colors = {
+            'low': 'gray',
+            'medium': 'orange',
+            'high': 'red',
+            'critical': 'darkred',
+        }
+        color = colors.get(obj.urgency_level, 'gray')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>',
+            color,
+            obj.get_urgency_level_display()
+        )
+
     @admin.display(description='Status')
     def status_badge(self, obj):
         colors = {
             'pending_approval': 'orange',
-            'approved': 'blue',
+            'approved': 'green',
             'rejected': 'red',
-            'proof_attached': 'purple',
-            'completed': 'green',
         }
         color = colors.get(obj.status, 'gray')
         return format_html(
@@ -194,17 +281,21 @@ class DonationAdmin(admin.ModelAdmin):
 
     @admin.action(description='Approve selected requests')
     def approve_requests(self, request, queryset):
+        # TODO: Trigger signal to create AssistanceCase
         updated = queryset.filter(status='pending_approval').update(
             status='approved',
             reviewed_by=request.user,
             approved_at=timezone.now()
         )
-        self.message_user(request, f'{updated} requests approved.')
+        self.message_user(request, f'{updated} requests approved. AssistanceCase will be created automatically.')
 
-    @admin.action(description='Mark selected requests as completed')
-    def mark_as_completed(self, request, queryset):
-        updated = queryset.filter(status__in=['approved', 'proof_attached']).update(
-            status='completed',
-            completed_at=timezone.now()
-        )
-        self.message_user(request, f'{updated} requests marked as completed.')
+    @admin.action(description='Reject selected requests')
+    def reject_requests(self, request, queryset):
+        count = 0
+        for obj in queryset.filter(status='pending_approval'):
+            obj.status = 'rejected'
+            obj.reviewed_by = request.user
+            obj.rejection_reason = 'Rejected via bulk action'  # Could prompt for reason
+            obj.save()
+            count += 1
+        self.message_user(request, f'{count} requests rejected.')

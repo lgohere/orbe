@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
+import django_filters
 
 from .models import AssistanceCase, Attachment
 from .serializers import (
@@ -20,9 +21,22 @@ from .serializers import (
     AssistanceCaseCreateSerializer,
     AttachmentSerializer,
     CaseApprovalSerializer,
-    CaseRejectionSerializer
+    CaseRejectionSerializer,
+    BankInfoSerializer,
+    ConfirmTransferSerializer,
+    SubmitMemberProofSerializer,
+    CompleteCaseSerializer
 )
 from .permissions import CanCreateCase, CanApproveCase, CanEditCase
+
+
+class AssistanceCaseFilter(django_filters.FilterSet):
+    """Custom filter for AssistanceCase to support exclude_status"""
+    exclude_status = django_filters.CharFilter(field_name='status', exclude=True)
+
+    class Meta:
+        model = AssistanceCase
+        fields = ['status', 'created_by', 'exclude_status']
 
 
 class AssistanceCaseViewSet(viewsets.ModelViewSet):
@@ -48,7 +62,7 @@ class AssistanceCaseViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'created_by']
+    filterset_class = AssistanceCaseFilter
     search_fields = ['title', 'public_description']
     ordering_fields = ['created_at', 'updated_at', 'total_value']
     ordering = ['-created_at']
@@ -79,9 +93,9 @@ class AssistanceCaseViewSet(viewsets.ModelViewSet):
         """
         Filter queryset based on user role.
 
-        - Members: Only approved cases
-        - Board: Their own cases + approved cases
-        - Fiscal Council: Pending cases + approved cases
+        - Members: Own cases + completed cases
+        - Board: Their own cases + completed cases
+        - Fiscal Council: All cases (need to approve/validate)
         - Admin: All cases
         """
         user = self.request.user
@@ -90,20 +104,20 @@ class AssistanceCaseViewSet(viewsets.ModelViewSet):
         if user.role == 'SUPER_ADMIN':
             return self.queryset
 
-        # Fiscal Council sees pending + approved
+        # Fiscal Council sees everything (need to approve/validate)
         if user.role == 'FISCAL_COUNCIL':
-            return self.queryset.filter(
-                Q(status='pending_approval') | Q(status='approved')
-            )
+            return self.queryset
 
-        # Board sees their own + approved
+        # Board sees their own + completed
         if user.role == 'BOARD':
             return self.queryset.filter(
-                Q(created_by=user) | Q(status='approved')
+                Q(created_by=user) | Q(status='completed')
             )
 
-        # Regular members see only approved
-        return self.queryset.filter(status='approved')
+        # Regular members see their own cases + completed cases
+        return self.queryset.filter(
+            Q(created_by=user) | Q(status='completed')
+        )
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanApproveCase])
     def approve(self, request, pk=None):
@@ -187,6 +201,100 @@ class AssistanceCaseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    @action(detail=True, methods=['post'])
+    def submit_bank_info(self, request, pk=None):
+        """
+        STEP 1.5: Member provides beneficiary bank information after approval.
+        Required before admin can transfer funds.
+
+        Request: POST /api/assistance/cases/{id}/submit_bank_info/
+        Body: {
+            "beneficiary_name": "João Silva",
+            "beneficiary_cpf": "000.000.000-00",
+            "beneficiary_pix_key": "joao@email.com" (or full bank info)
+        }
+        Response: Updated case data
+        """
+        case = self.get_object()
+        serializer = BankInfoSerializer(case, data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            serializer.save()
+            detail_serializer = AssistanceCaseDetailSerializer(case, context={'request': request})
+            return Response({
+                'message': 'Dados bancários enviados com sucesso! Aguardando transferência do admin.',
+                'case': detail_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanApproveCase])
+    def confirm_transfer(self, request, pk=None):
+        """
+        STEP 2: Admin confirms they transferred money to member.
+        Must upload PIX/transfer receipt as attachment.
+
+        Request: POST /api/assistance/cases/{id}/confirm_transfer/
+        Response: Updated case data
+        """
+        case = self.get_object()
+        serializer = ConfirmTransferSerializer(case, data={}, context={'request': request})
+
+        if serializer.is_valid():
+            serializer.save()
+            detail_serializer = AssistanceCaseDetailSerializer(case, context={'request': request})
+            return Response({
+                'message': 'Transferência confirmada. Aguardando comprovação do membro.',
+                'case': detail_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
+    def submit_member_proof(self, request, pk=None):
+        """
+        STEP 3: Member submits proof of application to beneficiary.
+        Must upload photos + receipts as attachments.
+
+        Request: POST /api/assistance/cases/{id}/submit_member_proof/
+        Response: Updated case data
+        """
+        case = self.get_object()
+        serializer = SubmitMemberProofSerializer(case, data={}, context={'request': request})
+
+        if serializer.is_valid():
+            serializer.save()
+            detail_serializer = AssistanceCaseDetailSerializer(case, context={'request': request})
+            return Response({
+                'message': 'Comprovantes enviados. Aguardando validação do administrador.',
+                'case': detail_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanApproveCase])
+    def complete(self, request, pk=None):
+        """
+        STEP 4: Admin validates all proofs and completes case.
+        Checks that transfer proof + member proof exist.
+        Marks case as completed and ready for feed publication.
+
+        Request: POST /api/assistance/cases/{id}/complete/
+        Response: Updated case data
+        """
+        case = self.get_object()
+        serializer = CompleteCaseSerializer(case, data={}, context={'request': request})
+
+        if serializer.is_valid():
+            serializer.save()
+            detail_serializer = AssistanceCaseDetailSerializer(case, context={'request': request})
+            return Response({
+                'message': 'Caso validado e concluído com sucesso!',
+                'case': detail_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=False, methods=['get'])
     def my_cases(self, request):
         """
@@ -268,9 +376,11 @@ class AttachmentViewSet(viewsets.ModelViewSet):
                 Q(created_by=user) | Q(status='approved')
             ).values_list('id', flat=True)
         else:
-            # Regular members see only approved case attachments
+            # Regular members see attachments from:
+            # 1. Their own cases (any status)
+            # 2. Approved cases (public)
             visible_case_ids = AssistanceCase.objects.filter(
-                status='approved'
+                Q(created_by=user) | Q(status='approved')
             ).values_list('id', flat=True)
 
         return self.queryset.filter(case_id__in=visible_case_ids)
@@ -278,11 +388,10 @@ class AttachmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Validate case access before allowing upload.
-        Users can only upload to cases they can edit.
+        Different permissions based on case status and attachment type.
         """
         case = serializer.validated_data.get('case')
-
-        # Check if user has permission to upload to this case
+        attachment_type = serializer.validated_data.get('attachment_type', 'other')
         user = self.request.user
 
         # Admin can always upload
@@ -290,15 +399,25 @@ class AttachmentViewSet(viewsets.ModelViewSet):
             serializer.save(uploaded_by=user)
             return
 
-        # Board member can upload to their own cases (if editable)
-        if case.created_by == user and case.can_be_edited:
-            serializer.save(uploaded_by=user)
-            return
+        # Fiscal Council can upload to pending cases or awaiting transfer (payment_proof)
+        if user.role == 'FISCAL_COUNCIL':
+            if case.status == 'pending_approval':
+                serializer.save(uploaded_by=user)
+                return
+            if case.status == 'awaiting_transfer' and attachment_type == 'payment_proof':
+                serializer.save(uploaded_by=user)
+                return
 
-        # Fiscal Council can upload supporting documents to pending cases
-        if user.role == 'FISCAL_COUNCIL' and case.status == 'pending_approval':
-            serializer.save(uploaded_by=user)
-            return
+        # Member can upload to their own cases in specific statuses
+        if case.created_by == user:
+            # Can edit drafts and rejected cases
+            if case.can_be_edited:
+                serializer.save(uploaded_by=user)
+                return
+            # Can upload member proof when awaiting it
+            if case.status == 'awaiting_member_proof' and attachment_type == 'photo_evidence':
+                serializer.save(uploaded_by=user)
+                return
 
         # Otherwise, deny
         from rest_framework.exceptions import PermissionDenied
@@ -306,8 +425,13 @@ class AttachmentViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         """
-        Allow deletion only by uploader, case creator, or admin.
-        Cannot delete from approved cases.
+        Allow deletion only by uploader or admin.
+
+        CRITICAL BUSINESS RULE:
+        - Admin can delete any attachment
+        - Users can ONLY delete their own uploads
+        - Members CANNOT delete admin's attachments (payment_proof)
+        - Cannot delete from completed cases
         """
         user = self.request.user
 
@@ -316,21 +440,17 @@ class AttachmentViewSet(viewsets.ModelViewSet):
             instance.delete()
             return
 
-        # Can't delete from approved cases
-        if instance.case.status == 'approved':
+        # Can't delete from completed cases
+        if instance.case.status == 'completed':
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("Não é possível remover anexos de casos aprovados.")
+            raise PermissionDenied("Não é possível remover anexos de casos concluídos.")
 
-        # Uploader can delete their own uploads
+        # ONLY uploader can delete their own uploads
+        # This prevents members from deleting admin's payment_proof
         if instance.uploaded_by == user:
-            instance.delete()
-            return
-
-        # Case creator can delete attachments from their case
-        if instance.case.created_by == user:
             instance.delete()
             return
 
         # Otherwise, deny
         from rest_framework.exceptions import PermissionDenied
-        raise PermissionDenied("Você não tem permissão para remover este anexo.")
+        raise PermissionDenied("Você só pode remover anexos que você mesmo enviou.")

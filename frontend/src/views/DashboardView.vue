@@ -225,11 +225,15 @@
               variant="outlined"
               block
               prepend-icon="mdi-qrcode"
+              @click="showPixDialog = true"
             >
               Gerar PIX
             </v-btn>
           </v-card-text>
         </v-card>
+
+        <!-- PIX Payment Dialog -->
+        <PixPaymentDialog v-model="showPixDialog" />
 
         <!-- Notifications -->
         <v-card rounded="lg">
@@ -280,52 +284,149 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import PixPaymentDialog from '@/components/finance/PixPaymentDialog.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// Stats data
-const stats = computed(() => [
-  {
-    title: 'Casos Ativos',
-    value: '12',
-    change: '+3 este mês',
-    changePositive: true,
-    icon: 'mdi-heart-pulse',
-    color: 'primary',
-    iconBg: 'rgba(255, 255, 255, 0.2)'
-  },
-  {
-    title: 'Membros',
-    value: '48',
-    change: '+5 este mês',
-    changePositive: true,
-    icon: 'mdi-account-group',
-    color: 'secondary',
-    iconBg: 'rgba(255, 255, 255, 0.2)'
-  },
-  {
-    title: 'Doações',
-    value: 'R$ 3.2k',
-    change: '+12% este mês',
-    changePositive: true,
-    icon: 'mdi-hand-heart',
-    color: 'success',
-    iconBg: 'rgba(255, 255, 255, 0.2)'
-  },
-  {
-    title: 'Pendências',
-    value: '3',
-    change: '-2 esta semana',
-    changePositive: true,
-    icon: 'mdi-clock-alert-outline',
-    color: 'warning',
-    iconBg: 'rgba(255, 255, 255, 0.2)'
+// PIX Dialog state
+const showPixDialog = ref(false)
+
+// Real-time stats
+const activeCasesCount = ref(0)
+const completedCasesCount = ref(0)
+const totalMembersCount = ref(0)
+const totalDonations = ref('0,00')
+
+// Load real statistics
+async function loadStats() {
+  try {
+    // Load active cases count (exclude completed)
+    const activeCasesResponse = await fetch('/api/assistance/cases/?exclude_status=completed', {
+      headers: { 'Authorization': `Token ${authStore.token}` }
+    })
+    if (activeCasesResponse.ok) {
+      const activeCasesData = await activeCasesResponse.json()
+      activeCasesCount.value = activeCasesData.count
+    }
+
+    // Load completed cases count
+    const completedCasesResponse = await fetch('/api/assistance/cases/?status=completed', {
+      headers: { 'Authorization': `Token ${authStore.token}` }
+    })
+    if (completedCasesResponse.ok) {
+      const completedCasesData = await completedCasesResponse.json()
+      completedCasesCount.value = completedCasesData.count
+    }
+
+    // For admin/board, load additional stats
+    if (authStore.user?.role !== 'MEMBER') {
+      // Load members count (if endpoint exists)
+      try {
+        const membersResponse = await fetch('/api/users/profiles/', {
+          headers: { 'Authorization': `Token ${authStore.token}` }
+        })
+        if (membersResponse.ok) {
+          const membersData = await membersResponse.json()
+          totalMembersCount.value = membersData.count || membersData.length
+        }
+      } catch (e) {
+        console.log('Members count not available')
+      }
+
+      // Load donations total (if endpoint exists)
+      try {
+        const donationsResponse = await fetch('/api/finance/donations/', {
+          headers: { 'Authorization': `Token ${authStore.token}` }
+        })
+        if (donationsResponse.ok) {
+          const donationsData = await donationsResponse.json()
+          const total = donationsData.results?.reduce((sum: number, d: any) => {
+            return sum + (parseFloat(d.amount) || 0)
+          }, 0) || 0
+          totalDonations.value = total.toFixed(2).replace('.', ',')
+        }
+      } catch (e) {
+        console.log('Donations not available')
+      }
+    }
+  } catch (error) {
+    console.error('Error loading stats:', error)
   }
-])
+}
+
+// Stats data with real values
+const stats = computed(() => {
+  const isMember = authStore.user?.role === 'MEMBER'
+
+  if (isMember) {
+    return [
+      {
+        title: 'Meus Casos Ativos',
+        value: activeCasesCount.value.toString(),
+        icon: 'mdi-progress-clock',
+        color: 'primary',
+        iconBg: 'rgba(255, 255, 255, 0.2)'
+      },
+      {
+        title: 'Casos Concluídos',
+        value: completedCasesCount.value.toString(),
+        icon: 'mdi-check-circle',
+        color: 'success',
+        iconBg: 'rgba(255, 255, 255, 0.2)'
+      },
+      {
+        title: 'Total de Casos',
+        value: (activeCasesCount.value + completedCasesCount.value).toString(),
+        icon: 'mdi-file-document',
+        color: 'info',
+        iconBg: 'rgba(255, 255, 255, 0.2)'
+      },
+      {
+        title: 'Status',
+        value: 'Ativo',
+        icon: 'mdi-account-check',
+        color: 'secondary',
+        iconBg: 'rgba(255, 255, 255, 0.2)'
+      }
+    ]
+  }
+
+  // Admin/Board stats
+  return [
+    {
+      title: 'Casos Ativos',
+      value: activeCasesCount.value.toString(),
+      icon: 'mdi-heart-pulse',
+      color: 'primary',
+      iconBg: 'rgba(255, 255, 255, 0.2)'
+    },
+    {
+      title: 'Membros',
+      value: totalMembersCount.value.toString(),
+      icon: 'mdi-account-group',
+      color: 'secondary',
+      iconBg: 'rgba(255, 255, 255, 0.2)'
+    },
+    {
+      title: 'Doações',
+      value: `R$ ${totalDonations.value}`,
+      icon: 'mdi-hand-heart',
+      color: 'success',
+      iconBg: 'rgba(255, 255, 255, 0.2)'
+    },
+    {
+      title: 'Concluídos',
+      value: completedCasesCount.value.toString(),
+      icon: 'mdi-check-all',
+      color: 'info',
+      iconBg: 'rgba(255, 255, 255, 0.2)'
+    }
+  ]
+})
 
 // Recent activities
 const recentActivities = ref([
@@ -412,6 +513,11 @@ function getWelcomeMessage() {
   if (hour < 18) return 'Boa tarde! Confira as novidades.'
   return 'Boa noite! Veja o que aconteceu hoje.'
 }
+
+// Load stats on mount
+onMounted(() => {
+  loadStats()
+})
 </script>
 
 <style scoped>

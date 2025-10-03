@@ -63,6 +63,17 @@
 
             <!-- Form -->
             <v-card-text class="pa-8 pt-4">
+              <!-- Session Expired Alert -->
+              <v-alert
+                v-if="sessionExpired"
+                type="warning"
+                variant="tonal"
+                class="mb-4"
+                closable
+              >
+                Sua sessão expirou. Por favor, faça login novamente.
+              </v-alert>
+
               <v-form @submit.prevent="handleLogin" ref="form">
                 <v-row>
                   <!-- Email -->
@@ -203,7 +214,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
@@ -228,6 +239,10 @@ const currentLanguageLabel = computed(() => {
   const current = languageOptions.find(lang => lang.value === locale.value)
   return current?.label || '🇧🇷 Português'
 })
+
+// Check if redirected due to session expiration
+const route = useRoute()
+const sessionExpired = ref(route.query.expired === 'true')
 
 // Form data
 const formData = reactive({

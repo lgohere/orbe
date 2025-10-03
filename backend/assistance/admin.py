@@ -6,15 +6,29 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import AssistanceCase, Attachment
+from .models import AssistanceCase, Attachment, CaseTimeline
+
+
+class CaseTimelineInline(admin.TabularInline):
+    """Inline admin for timeline events"""
+    model = CaseTimeline
+    extra = 0
+    readonly_fields = ['event_type', 'description', 'user', 'metadata', 'created_at']
+    fields = ['created_at', 'event_type', 'description', 'user', 'metadata']
+    can_delete = False
+    ordering = ['created_at']
+
+    def has_add_permission(self, request, obj=None):
+        """Prevent manual timeline entry creation"""
+        return False
 
 
 class AttachmentInline(admin.TabularInline):
     """Inline admin for attachments"""
     model = Attachment
     extra = 0
-    readonly_fields = ['file_name', 'file_type', 'file_size', 'file_size_mb', 'uploaded_at', 'uploaded_by', 'file_preview']
-    fields = ['file', 'file_preview', 'file_name', 'file_type', 'file_size_mb', 'uploaded_by', 'uploaded_at']
+    readonly_fields = ['file_name', 'file_type', 'file_size', 'file_size_mb', 'uploaded_at', 'uploaded_by', 'file_preview', 'attachment_type']
+    fields = ['file', 'attachment_type', 'file_preview', 'file_name', 'file_type', 'file_size_mb', 'uploaded_by', 'uploaded_at']
     can_delete = True
 
     def file_preview(self, obj):
@@ -34,6 +48,101 @@ class AttachmentInline(admin.TabularInline):
                 )
         return "-"
     file_preview.short_description = "Preview"
+
+
+@admin.register(CaseTimeline)
+class CaseTimelineAdmin(admin.ModelAdmin):
+    """Admin interface for timeline events"""
+
+    list_display = [
+        'id',
+        'event_badge',
+        'case_link',
+        'user',
+        'created_at'
+    ]
+
+    list_filter = [
+        'event_type',
+        'created_at',
+        'case__status'
+    ]
+
+    search_fields = [
+        'description',
+        'case__title',
+        'user__email',
+        'user__first_name',
+        'user__last_name'
+    ]
+
+    readonly_fields = [
+        'case',
+        'event_type',
+        'description',
+        'user',
+        'metadata',
+        'created_at',
+        'event_badge'
+    ]
+
+    fieldsets = (
+        ('Evento', {
+            'fields': ('event_type', 'event_badge', 'description')
+        }),
+        ('Relacionamento', {
+            'fields': ('case', 'user', 'created_at')
+        }),
+        ('Metadados', {
+            'fields': ('metadata',),
+            'classes': ('collapse',)
+        })
+    )
+
+    date_hierarchy = 'created_at'
+    ordering = ['-created_at']
+
+    def has_add_permission(self, request):
+        """Prevent manual timeline creation - only via signals"""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Timeline events are immutable"""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of audit trail"""
+        return request.user.is_superuser
+
+    def event_badge(self, obj):
+        """Display colored event badge"""
+        colors = {
+            'case_created': '#28a745',
+            'submitted_for_approval': '#007bff',
+            'approved': '#28a745',
+            'rejected': '#dc3545',
+            'bank_info_submitted': '#17a2b8',
+            'transfer_confirmed': '#28a745',
+            'member_proof_submitted': '#17a2b8',
+            'completed': '#28a745',
+            'attachment_uploaded': '#6c757d',
+            'status_changed': '#ffc107',
+            'comment_added': '#6c757d',
+        }
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            colors.get(obj.event_type, '#000'),
+            obj.get_event_type_display()
+        )
+    event_badge.short_description = "Tipo de Evento"
+
+    def case_link(self, obj):
+        """Link to related case"""
+        if obj.case:
+            url = reverse('admin:assistance_assistancecase_change', args=[obj.case.id])
+            return format_html('<a href="{}">{}</a>', url, obj.case.title)
+        return "-"
+    case_link.short_description = "Caso"
 
 
 @admin.register(AssistanceCase)
@@ -102,7 +211,7 @@ class AssistanceCaseAdmin(admin.ModelAdmin):
         })
     )
 
-    inlines = [AttachmentInline]
+    inlines = [CaseTimelineInline, AttachmentInline]
 
     date_hierarchy = 'created_at'
     ordering = ['-created_at']

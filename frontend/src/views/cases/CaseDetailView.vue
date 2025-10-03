@@ -25,21 +25,25 @@
             Voltar para Lista
           </v-btn>
 
-          <div class="d-flex align-center justify-space-between flex-wrap">
+          <div class="d-flex align-center justify-space-between flex-wrap gap-2">
             <div>
               <h1 class="text-h4 font-weight-bold text-primary mb-2">
                 {{ caseData.title }}
               </h1>
-              <v-chip :color="getStatusColor(caseData.status)" class="mr-2">
-                {{ caseData.status_display }}
-              </v-chip>
-              <span class="text-body-2 text-grey">
-                Criado em {{ formatDate(caseData.created_at) }}
-              </span>
+              <div class="d-flex align-center gap-2 flex-wrap">
+                <v-chip :color="getStatusColor(caseData.status)" size="large">
+                  <v-icon start>{{ getStatusIcon(caseData.status) }}</v-icon>
+                  {{ caseData.status_display }}
+                </v-chip>
+                <span class="text-body-2 text-grey">
+                  Criado em {{ formatDate(caseData.created_at) }}
+                </span>
+              </div>
             </div>
 
             <!-- Actions -->
-            <div class="d-flex gap-2 mt-2">
+            <div class="d-flex gap-2 mt-2 flex-wrap">
+              <!-- Edit (Draft/Pending only) -->
               <v-btn
                 v-if="canEdit"
                 color="primary"
@@ -50,6 +54,7 @@
                 Editar
               </v-btn>
 
+              <!-- Submit for Approval (Draft only) -->
               <v-btn
                 v-if="canSubmit"
                 color="primary"
@@ -60,6 +65,7 @@
                 Enviar para Aprovação
               </v-btn>
 
+              <!-- Approve (Pending Approval) -->
               <v-btn
                 v-if="canApprove"
                 color="success"
@@ -69,6 +75,7 @@
                 Aprovar
               </v-btn>
 
+              <!-- Reject (Pending Approval) -->
               <v-btn
                 v-if="canApprove"
                 color="error"
@@ -76,6 +83,46 @@
                 @click="showRejectionDialog = true"
               >
                 Rejeitar
+              </v-btn>
+
+              <!-- Submit Bank Info (Awaiting Bank Info - Member only) -->
+              <v-btn
+                v-if="canSubmitBankInfo"
+                color="blue-grey"
+                prepend-icon="mdi-bank"
+                @click="showBankInfoDialog = true"
+              >
+                Informar Dados Bancários
+              </v-btn>
+
+              <!-- Confirm Transfer (Awaiting Transfer - Admin only) -->
+              <v-btn
+                v-if="canConfirmTransfer"
+                color="info"
+                prepend-icon="mdi-bank-transfer"
+                @click="openTransferDialog"
+              >
+                Confirmar Transferência
+              </v-btn>
+
+              <!-- Submit Member Proof (Awaiting Member Proof - Member only) -->
+              <v-btn
+                v-if="canSubmitMemberProof"
+                color="purple"
+                prepend-icon="mdi-camera"
+                @click="showSubmitProofDialog = true"
+              >
+                Enviar Comprovantes
+              </v-btn>
+
+              <!-- Complete Case (Pending Validation - Admin only) -->
+              <v-btn
+                v-if="canComplete"
+                color="success"
+                prepend-icon="mdi-check-all"
+                @click="showCompleteDialog = true"
+              >
+                Validar e Concluir
               </v-btn>
             </div>
           </div>
@@ -102,8 +149,8 @@
               <v-icon class="mr-2">mdi-lock-outline</v-icon>
               Descrição Interna (Confidencial)
             </v-card-title>
-            <v-card-text class="text-body-1" style="white-space: pre-wrap;">
-              {{ caseData.internal_description }}
+            <v-card-text class="text-body-1 internal-description-content">
+              <div v-html="formattedInternalDescription"></div>
             </v-card-text>
           </v-card>
 
@@ -135,16 +182,17 @@
                 target="_blank"
               >
                 <template #prepend>
-                  <v-avatar color="grey-lighten-3">
-                    <v-icon :color="attachment.is_image ? 'primary' : 'grey'">
-                      {{ attachment.file_icon }}
+                  <v-avatar :color="getAttachmentColor(attachment.attachment_type)">
+                    <v-icon :color="getAttachmentIconColor(attachment.attachment_type)">
+                      {{ getAttachmentIcon(attachment.attachment_type) }}
                     </v-icon>
                   </v-avatar>
                 </template>
 
                 <v-list-item-title>{{ attachment.file_name }}</v-list-item-title>
                 <v-list-item-subtitle>
-                  {{ attachment.file_type }} • {{ attachment.file_size_mb }} MB •
+                  <v-chip size="x-small" class="mr-2">{{ getAttachmentTypeLabel(attachment.attachment_type) }}</v-chip>
+                  {{ attachment.file_type }} •  {{ attachment.file_size_mb }} MB •
                   Enviado em {{ formatDate(attachment.uploaded_at) }}
                 </v-list-item-subtitle>
 
@@ -155,6 +203,14 @@
                     size="small"
                     :href="attachment.file_url"
                     download
+                  />
+                  <v-btn
+                    v-if="canDeleteAttachment(attachment)"
+                    icon="mdi-delete"
+                    variant="text"
+                    size="small"
+                    color="error"
+                    @click.prevent="confirmDeleteAttachment(attachment)"
                   />
                 </template>
               </v-list-item>
@@ -200,15 +256,6 @@
 
               <v-divider v-if="caseData.reviewed_by" />
 
-              <v-list-item v-if="caseData.approved_at">
-                <v-list-item-title class="text-caption text-grey">Data de Aprovação</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ formatDate(caseData.approved_at) }}
-                </v-list-item-subtitle>
-              </v-list-item>
-
-              <v-divider />
-
               <v-list-item>
                 <v-list-item-title class="text-caption text-grey">Última Atualização</v-list-item-title>
                 <v-list-item-subtitle>
@@ -218,57 +265,76 @@
             </v-list>
           </v-card>
 
-          <!-- Timeline Card (if has history) -->
-          <v-card v-if="caseData.status !== 'draft'">
+          <!-- Progress Timeline Card -->
+          <v-card>
             <v-card-title class="text-h6 bg-grey-lighten-4">
               <v-icon class="mr-2">mdi-timeline-clock-outline</v-icon>
-              Histórico
+              Histórico do Caso
             </v-card-title>
-            <v-timeline side="end" density="compact" class="pa-4">
-              <v-timeline-item
-                dot-color="success"
-                size="small"
-                icon="mdi-plus"
-              >
-                <div>
-                  <div class="font-weight-bold">Caso Criado</div>
-                  <div class="text-caption text-grey">{{ formatDate(caseData.created_at) }}</div>
-                </div>
-              </v-timeline-item>
 
-              <v-timeline-item
-                v-if="caseData.status !== 'draft'"
-                dot-color="primary"
-                size="small"
-                icon="mdi-send"
-              >
-                <div>
-                  <div class="font-weight-bold">Enviado para Aprovação</div>
-                  <div class="text-caption text-grey">{{ formatDate(caseData.updated_at) }}</div>
-                </div>
-              </v-timeline-item>
+            <!-- Empty State -->
+            <v-card-text v-if="!caseData.timeline_events || caseData.timeline_events.length === 0" class="text-center py-8">
+              <v-icon size="64" color="grey-lighten-2">mdi-timeline-clock-outline</v-icon>
+              <p class="text-grey mt-2">Nenhum evento registrado ainda</p>
+            </v-card-text>
 
+            <!-- Dynamic Timeline -->
+            <v-timeline v-else side="end" density="compact" class="pa-4">
               <v-timeline-item
-                v-if="caseData.approved_at"
-                dot-color="success"
+                v-for="event in caseData.timeline_events"
+                :key="event.id"
+                :dot-color="event.event_color"
+                :icon="event.event_icon"
                 size="small"
-                icon="mdi-check"
               >
                 <div>
-                  <div class="font-weight-bold">Aprovado</div>
-                  <div class="text-caption text-grey">{{ formatDate(caseData.approved_at) }}</div>
-                </div>
-              </v-timeline-item>
+                  <div class="font-weight-bold">{{ event.event_display }}</div>
 
-              <v-timeline-item
-                v-if="caseData.status === 'rejected'"
-                dot-color="error"
-                size="small"
-                icon="mdi-close"
-              >
-                <div>
-                  <div class="font-weight-bold">Rejeitado</div>
-                  <div class="text-caption text-grey">{{ formatDate(caseData.updated_at) }}</div>
+                  <!-- Description (if available) -->
+                  <div v-if="event.description" class="text-body-2 mt-1" style="white-space: pre-wrap;">
+                    {{ event.description }}
+                  </div>
+
+                  <!-- User and Date -->
+                  <div class="text-caption text-grey mt-1">
+                    {{ event.user_name }} • {{ formatDate(event.created_at) }}
+                  </div>
+
+                  <!-- Metadata (for specific events) -->
+                  <div v-if="event.metadata && Object.keys(event.metadata).length > 0" class="mt-2">
+                    <!-- Bank Info metadata -->
+                    <v-chip
+                      v-if="event.event_type === 'bank_info_submitted' && event.metadata.beneficiary_name"
+                      size="small"
+                      variant="tonal"
+                      color="info"
+                      class="mr-1"
+                    >
+                      <v-icon start size="small">mdi-account</v-icon>
+                      {{ event.metadata.beneficiary_name }}
+                    </v-chip>
+                    <v-chip
+                      v-if="event.event_type === 'bank_info_submitted' && event.metadata.beneficiary_bank"
+                      size="small"
+                      variant="tonal"
+                      color="info"
+                      class="mr-1"
+                    >
+                      <v-icon start size="small">mdi-bank</v-icon>
+                      {{ event.metadata.beneficiary_bank }}
+                    </v-chip>
+
+                    <!-- Attachment metadata -->
+                    <v-chip
+                      v-if="event.event_type === 'attachment_uploaded' && event.metadata.file_name"
+                      size="small"
+                      variant="tonal"
+                      color="grey"
+                    >
+                      <v-icon start size="small">{{ event.event_icon }}</v-icon>
+                      {{ event.metadata.file_name }}
+                    </v-chip>
+                  </div>
                 </div>
               </v-timeline-item>
             </v-timeline>
@@ -277,60 +343,74 @@
       </v-row>
     </div>
 
-    <!-- Approval Dialog -->
-    <v-dialog v-model="showApprovalDialog" max-width="500">
-      <v-card>
-        <v-card-title class="text-h6 bg-success text-white">
-          <v-icon class="mr-2">mdi-check-circle</v-icon>
-          Aprovar Caso
-        </v-card-title>
-        <v-card-text class="pt-4">
-          <p class="text-body-1 mb-4">
-            Tem certeza que deseja <strong>aprovar</strong> este caso de assistência?
-          </p>
-          <p class="text-body-2 text-grey">
-            Após a aprovação, o caso será publicado no feed comunitário e se tornará visível para todos os membros.
-          </p>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn variant="text" @click="showApprovalDialog = false">Cancelar</v-btn>
-          <v-btn color="success" @click="approveCase" :loading="approving">Confirmar Aprovação</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <!-- Bank Info Dialog -->
+    <BankInfoDialog
+      v-if="caseData"
+      v-model="showBankInfoDialog"
+      :case-id="caseData.id"
+      @submitted="onBankInfoSubmitted"
+    />
 
-    <!-- Rejection Dialog -->
-    <v-dialog v-model="showRejectionDialog" max-width="600">
+    <!-- Transfer Proof Dialog (Admin) -->
+    <TransferProofDialog
+      v-model="showConfirmTransferDialog"
+      :case-data="caseData"
+      @success="onTransferConfirmed"
+    />
+
+    <!-- Member Proof Dialog -->
+    <MemberProofDialog
+      v-model="showSubmitProofDialog"
+      :case-data="caseData"
+      @success="onMemberProofSubmitted"
+    />
+
+    <!-- Complete Case Dialog (Admin) -->
+    <CompleteCaseDialog
+      v-model="showCompleteDialog"
+      :case-data="caseData"
+      @success="onCaseCompleted"
+    />
+
+    <!-- Delete Attachment Confirmation Dialog -->
+    <v-dialog v-model="showDeleteAttachmentDialog" max-width="500">
       <v-card>
         <v-card-title class="text-h6 bg-error text-white">
-          <v-icon class="mr-2">mdi-close-circle</v-icon>
-          Rejeitar Caso
+          <v-icon class="mr-2" color="white">mdi-alert-circle</v-icon>
+          Confirmar Exclusão
         </v-card-title>
-        <v-card-text class="pt-4">
-          <p class="text-body-1 mb-4">
-            Por favor, explique o motivo da rejeição:
+
+        <v-card-text class="pt-6">
+          <p class="text-body-1">
+            Tem certeza que deseja remover este anexo?
           </p>
-          <v-textarea
-            v-model="rejectionReason"
-            label="Motivo da Rejeição"
-            placeholder="Descreva detalhadamente o motivo da rejeição (mínimo 20 caracteres)..."
-            variant="outlined"
-            rows="4"
-            :rules="[v => !!v || 'Motivo é obrigatório', v => v.length >= 20 || 'Mínimo de 20 caracteres']"
-            counter
-          />
+          <v-alert v-if="attachmentToDelete" type="info" variant="tonal" class="mt-4">
+            <strong>Arquivo:</strong> {{ attachmentToDelete.file_name }}<br>
+            <strong>Tipo:</strong> {{ getAttachmentTypeLabel(attachmentToDelete.attachment_type) }}<br>
+            <strong>Tamanho:</strong> {{ attachmentToDelete.file_size_mb }} MB
+          </v-alert>
+          <v-alert type="warning" variant="tonal" class="mt-4">
+            <strong>Atenção:</strong> Esta ação não pode ser desfeita!
+          </v-alert>
         </v-card-text>
-        <v-card-actions>
+
+        <v-divider />
+
+        <v-card-actions class="pa-4">
           <v-spacer />
-          <v-btn variant="text" @click="showRejectionDialog = false">Cancelar</v-btn>
+          <v-btn
+            @click="showDeleteAttachmentDialog = false"
+            :disabled="deletingAttachment"
+          >
+            Cancelar
+          </v-btn>
           <v-btn
             color="error"
-            @click="rejectCase"
-            :loading="rejecting"
-            :disabled="!rejectionReason || rejectionReason.length < 20"
+            variant="flat"
+            :loading="deletingAttachment"
+            @click="deleteAttachment"
           >
-            Confirmar Rejeição
+            Remover Anexo
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -340,6 +420,11 @@
     <v-snackbar v-model="showSuccess" color="success" timeout="3000">
       {{ successMessage }}
     </v-snackbar>
+
+    <!-- Error Snackbar -->
+    <v-snackbar v-model="showError" color="error" timeout="5000">
+      {{ error }}
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -347,6 +432,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { api } from '@/services/api'
+import BankInfoDialog from '@/components/assistance/BankInfoDialog.vue'
+import TransferProofDialog from '@/components/assistance/TransferProofDialog.vue'
+import MemberProofDialog from '@/components/assistance/MemberProofDialog.vue'
+import CompleteCaseDialog from '@/components/assistance/CompleteCaseDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -361,9 +451,17 @@ const approving = ref(false)
 const rejecting = ref(false)
 const showApprovalDialog = ref(false)
 const showRejectionDialog = ref(false)
+const showBankInfoDialog = ref(false)
+const showConfirmTransferDialog = ref(false)
+const showSubmitProofDialog = ref(false)
+const showCompleteDialog = ref(false)
 const rejectionReason = ref('')
 const showSuccess = ref(false)
 const successMessage = ref('')
+const showError = ref(false)
+const showDeleteAttachmentDialog = ref(false)
+const attachmentToDelete = ref<any>(null)
+const deletingAttachment = ref(false)
 
 // Computed
 const canEdit = computed(() =>
@@ -378,6 +476,26 @@ const canSubmit = computed(() =>
 
 const canApprove = computed(() =>
   caseData.value?.status === 'pending_approval' &&
+  authStore.canApproveCases
+)
+
+const canSubmitBankInfo = computed(() =>
+  caseData.value?.status === 'awaiting_bank_info' &&
+  caseData.value?.created_by?.id === authStore.user?.id
+)
+
+const canConfirmTransfer = computed(() =>
+  caseData.value?.status === 'awaiting_transfer' &&
+  authStore.canApproveCases
+)
+
+const canSubmitMemberProof = computed(() =>
+  caseData.value?.status === 'awaiting_member_proof' &&
+  caseData.value?.created_by?.id === authStore.user?.id
+)
+
+const canComplete = computed(() =>
+  caseData.value?.status === 'pending_validation' &&
   authStore.canApproveCases
 )
 
@@ -457,7 +575,7 @@ async function approveCase() {
     }
 
     showApprovalDialog.value = false
-    successMessage.value = 'Caso aprovado com sucesso!'
+    successMessage.value = 'Caso aprovado! Um AssistanceCase foi criado automaticamente.'
     showSuccess.value = true
     await loadCase()
   } catch (err) {
@@ -506,10 +624,64 @@ function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     'draft': 'grey',
     'pending_approval': 'warning',
-    'approved': 'success',
+    'awaiting_bank_info': 'blue-grey',
+    'awaiting_transfer': 'info',
+    'awaiting_member_proof': 'purple',
+    'pending_validation': 'deep-orange',
+    'completed': 'success',
     'rejected': 'error'
   }
   return colors[status] || 'grey'
+}
+
+function getStatusIcon(status: string): string {
+  const icons: Record<string, string> = {
+    'draft': 'mdi-pencil-outline',
+    'pending_approval': 'mdi-clock-outline',
+    'awaiting_bank_info': 'mdi-bank',
+    'awaiting_transfer': 'mdi-bank-transfer',
+    'awaiting_member_proof': 'mdi-camera-outline',
+    'pending_validation': 'mdi-shield-check-outline',
+    'completed': 'mdi-check-circle',
+    'rejected': 'mdi-close-circle-outline'
+  }
+  return icons[status] || 'mdi-file-document-outline'
+}
+
+function getAttachmentColor(type: string): string {
+  const colors: Record<string, string> = {
+    'payment_proof': 'info-lighten-4',
+    'photo_evidence': 'purple-lighten-4',
+    'other': 'grey-lighten-3'
+  }
+  return colors[type] || 'grey-lighten-3'
+}
+
+function getAttachmentIconColor(type: string): string {
+  const colors: Record<string, string> = {
+    'payment_proof': 'info',
+    'photo_evidence': 'purple',
+    'other': 'grey'
+  }
+  return colors[type] || 'grey'
+}
+
+function getAttachmentIcon(type: string): string {
+  const icons: Record<string, string> = {
+    'payment_proof': 'mdi-receipt',
+    'photo_evidence': 'mdi-camera',
+    'other': 'mdi-file-document'
+  }
+  return icons[type] || 'mdi-paperclip'
+}
+
+function getAttachmentTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    'payment_proof': 'Comprovante de Pagamento',
+    'photo_evidence': 'Foto/Comprovante',
+    'other': 'Outro'
+  }
+  return labels[type] || type
 }
 
 function getRoleLabel(role: string): string {
@@ -538,6 +710,119 @@ function formatDate(dateString: string): string {
   }).format(date)
 }
 
+// Computed property para converter markdown simples em HTML
+const formattedInternalDescription = computed(() => {
+  if (!caseData.value?.internal_description) return ''
+
+  let html = caseData.value.internal_description
+
+  // Escape HTML para prevenir XSS
+  html = html
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  // Converter markdown patterns para HTML
+  // **bold** → <strong>bold</strong>
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+
+  // *italic* → <em>italic</em>
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+
+  // Line breaks → <br>
+  html = html.replace(/\n/g, '<br>')
+
+  return html
+})
+
+async function onBankInfoSubmitted() {
+  showBankInfoDialog.value = false  // Garantir fechamento do dialog
+  successMessage.value = 'Dados bancários enviados com sucesso! Aguardando transferência do admin.'
+  showSuccess.value = true
+  await loadCase()
+}
+
+function openTransferDialog() {
+  console.log('Opening transfer dialog, current status:', caseData.value?.status)
+  console.log('Can approve cases:', authStore.canApproveCases)
+  console.log('Current showConfirmTransferDialog:', showConfirmTransferDialog.value)
+  showConfirmTransferDialog.value = true
+  console.log('After setting showConfirmTransferDialog:', showConfirmTransferDialog.value)
+}
+
+async function onTransferConfirmed() {
+  showConfirmTransferDialog.value = false  // Garantir fechamento do dialog
+  successMessage.value = 'Transferência confirmada! Aguardando comprovação do membro.'
+  showSuccess.value = true
+  await loadCase()
+}
+
+async function onMemberProofSubmitted() {
+  showSubmitProofDialog.value = false  // Garantir fechamento do dialog
+  successMessage.value = 'Comprovantes enviados! Aguardando validação do administrador.'
+  showSuccess.value = true
+  await loadCase()
+}
+
+async function onCaseCompleted() {
+  showCompleteCaseDialog.value = false  // Garantir fechamento do dialog
+  successMessage.value = 'Caso validado e concluído com sucesso! 🎉'
+  showSuccess.value = true
+  await loadCase()
+}
+
+// Attachment deletion
+function canDeleteAttachment(attachment: any): boolean {
+  // Admin can always delete
+  if (authStore.isAdmin) return true
+
+  // Can't delete from completed cases
+  if (caseData.value?.status === 'completed') return false
+
+  // CRITICAL: Users can ONLY delete their own uploads
+  // Members CANNOT delete admin's attachments (payment_proof)
+  if (attachment.uploaded_by?.id === authStore.user?.id) return true
+
+  return false
+}
+
+function confirmDeleteAttachment(attachment: any) {
+  attachmentToDelete.value = attachment
+  showDeleteAttachmentDialog.value = true
+}
+
+async function deleteAttachment() {
+  if (!attachmentToDelete.value) return
+
+  deletingAttachment.value = true
+
+  try {
+    console.log('Deleting attachment:', attachmentToDelete.value.id)
+    const result = await api.deleteAttachment(attachmentToDelete.value.id)
+    console.log('Delete result:', result)
+
+    if (result.error) {
+      console.error('Delete error:', result.error)
+      error.value = result.error
+      showError.value = true
+      showDeleteAttachmentDialog.value = false
+    } else {
+      successMessage.value = 'Anexo removido com sucesso!'
+      showSuccess.value = true
+      showDeleteAttachmentDialog.value = false
+      attachmentToDelete.value = null
+      await loadCase()
+    }
+  } catch (err: any) {
+    console.error('Exception during delete:', err)
+    error.value = err.message || 'Erro ao remover anexo'
+    showError.value = true
+    showDeleteAttachmentDialog.value = false
+  } finally {
+    deletingAttachment.value = false
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadCase()
@@ -547,5 +832,26 @@ onMounted(() => {
 <style scoped>
 .gap-2 {
   gap: 0.5rem;
+}
+
+/* Professional formatting for internal description markdown */
+.internal-description-content {
+  line-height: 1.8;
+  color: #2c3e50;
+}
+
+.internal-description-content :deep(strong) {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 1.05em;
+}
+
+.internal-description-content :deep(em) {
+  font-style: italic;
+  color: #555;
+}
+
+.internal-description-content :deep(br) {
+  margin-bottom: 0.5rem;
 }
 </style>

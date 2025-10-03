@@ -115,15 +115,60 @@
 
           <!-- Donations Tab -->
           <v-window-item value="donations">
+            <!-- Action Buttons (ONLY FOR MEMBERS) -->
+            <v-row v-if="!isStaff" class="mb-4">
+              <v-col cols="12" md="6">
+                <v-btn
+                  color="secondary"
+                  variant="flat"
+                  prepend-icon="mdi-hand-heart"
+                  @click="handleCreateRequest"
+                  block
+                >
+                  Solicitar Doação
+                </v-btn>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  prepend-icon="mdi-heart"
+                  @click="showVoluntaryDialog = true"
+                  block
+                >
+                  Fazer Doação Espontânea
+                </v-btn>
+              </v-col>
+            </v-row>
+
             <DonationsTable
               :donations="donations"
               :is-staff="isStaff"
+              :loading="loading"
+              @create="handleCreateRequest"
+              @edit="handleEditRequest"
+              @approve="handleApproveDonation"
+              @reject="handleRejectDonation"
+              @delete="handleDeleteDonation"
               @refresh="loadFinanceData"
             />
           </v-window-item>
         </v-window>
       </v-col>
     </v-row>
+
+    <!-- Dialogs -->
+    <RequestDonationDialog
+      v-model="showRequestDialog"
+      :edit-request="editingRequest"
+      @success="loadFinanceData"
+      @close="handleRequestDialogClose"
+    />
+
+    <VoluntaryDonationDialog
+      v-model="showVoluntaryDialog"
+      @success="loadFinanceData"
+    />
   </v-container>
 </template>
 
@@ -132,6 +177,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import MembershipFeesTable from '@/components/finance/MembershipFeesTable.vue'
 import DonationsTable from '@/components/finance/DonationsTable.vue'
+import RequestDonationDialog from '@/components/donations/RequestDonationDialog.vue'
+import VoluntaryDonationDialog from '@/components/donations/VoluntaryDonationDialog.vue'
+import type { DonationRequest } from '@/services/api'
 
 const authStore = useAuthStore()
 
@@ -139,6 +187,11 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const error = ref('')
 const currentTab = ref('membership')
+
+// Dialog states
+const showRequestDialog = ref(false)
+const showVoluntaryDialog = ref(false)
+const editingRequest = ref<DonationRequest | null>(null)
 
 // Data
 const membershipFees = ref<any[]>([])
@@ -219,9 +272,10 @@ async function loadMembershipFees() {
 
 async function loadDonations() {
   try {
+    // NEW: Changed to use donation-requests endpoint
     const endpoint = isStaff.value
-      ? '/api/finance/donations/'
-      : '/api/finance/donations/my_donations/'
+      ? '/api/finance/donation-requests/'
+      : '/api/finance/donation-requests/my_requests/'
 
     const response = await fetch(endpoint, {
       headers: {
@@ -251,14 +305,23 @@ async function loadStats() {
       .filter(fee => fee.status === 'pending' || fee.status === 'overdue')
       .reduce((sum, fee) => sum + parseFloat(fee.amount), 0)
 
-    // Get donation stats from API
-    const response = await fetch('/api/finance/donations/stats/', {
+    // NEW: Changed to use donation-requests stats endpoint
+    const response = await fetch('/api/finance/donation-requests/stats/', {
       headers: {
         'Authorization': `Token ${authStore.token}`
       }
     })
 
-    if (!response.ok) throw new Error('Failed to load donation stats')
+    if (!response.ok) {
+      console.warn('Failed to load donation stats, using default values')
+      stats.value = {
+        totalFees,
+        paidFees,
+        pendingFees,
+        totalDonations: 0
+      }
+      return
+    }
 
     const donationStats = await response.json()
 
@@ -270,8 +333,90 @@ async function loadStats() {
     }
   } catch (err) {
     console.error('Error loading stats:', err)
-    // Stats are optional, don't throw
+    // Stats are optional, set defaults
+    stats.value = {
+      totalFees: 0,
+      paidFees: 0,
+      pendingFees: 0,
+      totalDonations: 0
+    }
   }
+}
+
+// Donation Actions
+async function handleApproveDonation(donation: any) {
+  try {
+    const response = await fetch(`/api/finance/donation-requests/${donation.id}/approve/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${authStore.token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) throw new Error('Failed to approve donation')
+
+    // Reload data
+    await loadFinanceData()
+  } catch (err) {
+    console.error('Error approving donation:', err)
+    error.value = 'Erro ao aprovar solicitação'
+  }
+}
+
+async function handleRejectDonation(donation: any, reason: string) {
+  try {
+    const response = await fetch(`/api/finance/donation-requests/${donation.id}/reject/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${authStore.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ rejection_reason: reason })
+    })
+
+    if (!response.ok) throw new Error('Failed to reject donation')
+
+    // Reload data
+    await loadFinanceData()
+  } catch (err) {
+    console.error('Error rejecting donation:', err)
+    error.value = 'Erro ao rejeitar solicitação'
+  }
+}
+
+async function handleDeleteDonation(donation: any) {
+  try {
+    const response = await fetch(`/api/finance/donation-requests/${donation.id}/`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Token ${authStore.token}`
+      }
+    })
+
+    if (!response.ok) throw new Error('Failed to delete donation')
+
+    // Reload data
+    await loadFinanceData()
+  } catch (err) {
+    console.error('Error deleting donation:', err)
+    error.value = 'Erro ao excluir solicitação'
+  }
+}
+
+// Dialog handlers
+function handleCreateRequest() {
+  editingRequest.value = null
+  showRequestDialog.value = true
+}
+
+function handleEditRequest(request: DonationRequest) {
+  editingRequest.value = request
+  showRequestDialog.value = true
+}
+
+function handleRequestDialogClose() {
+  editingRequest.value = null
 }
 
 // Lifecycle
