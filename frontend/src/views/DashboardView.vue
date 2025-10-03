@@ -235,6 +235,9 @@
         <!-- PIX Payment Dialog -->
         <PixPaymentDialog v-model="showPixDialog" />
 
+        <!-- Voluntary Donation Dialog -->
+        <VoluntaryDonationDialog v-model="showDonationDialog" @success="onDonationSuccess" />
+
         <!-- Notifications -->
         <v-card rounded="lg">
           <v-card-title class="pa-6">
@@ -288,12 +291,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import PixPaymentDialog from '@/components/finance/PixPaymentDialog.vue'
+import VoluntaryDonationDialog from '@/components/donations/VoluntaryDonationDialog.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// PIX Dialog state
+// Dialog states
 const showPixDialog = ref(false)
+const showDonationDialog = ref(false)
 
 // Real-time stats
 const activeCasesCount = ref(0)
@@ -481,7 +486,7 @@ const quickActions = computed(() => {
     {
       title: 'Fazer Doação',
       icon: 'mdi-hand-heart-outline',
-      action: () => router.push('/donations/new')
+      action: () => showDonationDialog.value = true
     },
     {
       title: 'Ver Casos',
@@ -512,6 +517,13 @@ function getWelcomeMessage() {
   if (hour < 12) return 'Bom dia! Aqui está o resumo de hoje.'
   if (hour < 18) return 'Boa tarde! Confira as novidades.'
   return 'Boa noite! Veja o que aconteceu hoje.'
+}
+
+function onDonationSuccess() {
+  // Reload stats after successful donation
+  loadStats()
+  // Could also show a success message or open PIX dialog
+  console.log('Donation registered successfully')
 }
 
 // Load stats on mount
