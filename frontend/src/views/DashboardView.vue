@@ -290,6 +290,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 import PixPaymentDialog from '@/components/finance/PixPaymentDialog.vue'
 import VoluntaryDonationDialog from '@/components/donations/VoluntaryDonationDialog.vue'
 
@@ -309,53 +310,28 @@ const totalDonations = ref('0,00')
 // Load real statistics
 async function loadStats() {
   try {
-    // Load active cases count (exclude completed)
-    const activeCasesResponse = await fetch('/api/assistance/cases/?exclude_status=completed', {
-      headers: { 'Authorization': `Token ${authStore.token}` }
-    })
-    if (activeCasesResponse.ok) {
-      const activeCasesData = await activeCasesResponse.json()
-      activeCasesCount.value = activeCasesData.count
+    const activeCases = await apiService.get<{ count?: number; results?: any[] }>('/assistance/cases/?exclude_status=completed')
+    if (activeCases.data) {
+      activeCasesCount.value = activeCases.data.count ?? activeCases.data.results?.length ?? 0
     }
 
-    // Load completed cases count
-    const completedCasesResponse = await fetch('/api/assistance/cases/?status=completed', {
-      headers: { 'Authorization': `Token ${authStore.token}` }
-    })
-    if (completedCasesResponse.ok) {
-      const completedCasesData = await completedCasesResponse.json()
-      completedCasesCount.value = completedCasesData.count
+    const completedCases = await apiService.get<{ count?: number; results?: any[] }>('/assistance/cases/?status=completed')
+    if (completedCases.data) {
+      completedCasesCount.value = completedCases.data.count ?? completedCases.data.results?.length ?? 0
     }
 
-    // For admin/board, load additional stats
     if (authStore.user?.role !== 'MEMBER') {
-      // Load members count (if endpoint exists)
-      try {
-        const membersResponse = await fetch('/api/users/profiles/', {
-          headers: { 'Authorization': `Token ${authStore.token}` }
-        })
-        if (membersResponse.ok) {
-          const membersData = await membersResponse.json()
-          totalMembersCount.value = membersData.count || membersData.length
-        }
-      } catch (e) {
-        console.log('Members count not available')
+      const donationStats = await apiService.get<{ total_amount?: number }>('/finance/donation-requests/stats/')
+      if (donationStats.data) {
+        const total = Number(donationStats.data.total_amount ?? 0)
+        totalDonations.value = total.toFixed(2).replace('.', ',')
       }
+    }
 
-      // Load donations total (if endpoint exists)
-      try {
-        const donationsResponse = await fetch('/api/finance/donations/', {
-          headers: { 'Authorization': `Token ${authStore.token}` }
-        })
-        if (donationsResponse.ok) {
-          const donationsData = await donationsResponse.json()
-          const total = donationsData.results?.reduce((sum: number, d: any) => {
-            return sum + (parseFloat(d.amount) || 0)
-          }, 0) || 0
-          totalDonations.value = total.toFixed(2).replace('.', ',')
-        }
-      } catch (e) {
-        console.log('Donations not available')
+    if (authStore.user?.role === 'SUPER_ADMIN') {
+      const membersStats = await apiService.get<{ overview?: { total_members?: number } }>('/users/members/stats/')
+      if (membersStats.data?.overview) {
+        totalMembersCount.value = membersStats.data.overview.total_members ?? 0
       }
     }
   } catch (error) {
@@ -400,20 +376,12 @@ const stats = computed(() => {
     ]
   }
 
-  // Admin/Board stats
-  return [
+  const adminStats = [
     {
       title: 'Casos Ativos',
       value: activeCasesCount.value.toString(),
       icon: 'mdi-heart-pulse',
       color: 'primary',
-      iconBg: 'rgba(255, 255, 255, 0.2)'
-    },
-    {
-      title: 'Membros',
-      value: totalMembersCount.value.toString(),
-      icon: 'mdi-account-group',
-      color: 'secondary',
       iconBg: 'rgba(255, 255, 255, 0.2)'
     },
     {
@@ -431,6 +399,18 @@ const stats = computed(() => {
       iconBg: 'rgba(255, 255, 255, 0.2)'
     }
   ]
+
+  if (authStore.user?.role === 'SUPER_ADMIN') {
+    adminStats.splice(1, 0, {
+      title: 'Membros',
+      value: totalMembersCount.value.toString(),
+      icon: 'mdi-account-group',
+      color: 'secondary',
+      iconBg: 'rgba(255, 255, 255, 0.2)'
+    })
+  }
+
+  return adminStats
 })
 
 // Recent activities

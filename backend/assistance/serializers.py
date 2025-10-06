@@ -371,6 +371,125 @@ class ConfirmTransferSerializer(serializers.Serializer):
         return case
 
 
+class DirectDonationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for admin creating direct donation cases.
+    These cases bypass member proof workflow and go straight to completed status.
+
+    Admin provides:
+    - Beneficiary name (required) - can be anyone, not just members
+    - Member ID (optional) - to link to a ORBE member if applicable
+    - Title, descriptions
+    - Total value
+    - Payment proof (PIX/transfer receipt) as attachment
+    """
+    linked_member_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        allow_empty=True,
+        help_text="IDs dos membros ORBE vinculados (opcional, pode ser múltiplos)"
+    )
+    beneficiary_name = serializers.CharField(
+        max_length=200,
+        required=True,
+        help_text="Nome completo do beneficiário (pessoa em vulnerabilidade)"
+    )
+
+    class Meta:
+        model = AssistanceCase
+        fields = [
+            'id',
+            'beneficiary_name',
+            'linked_member_ids',
+            'title',
+            'public_description',
+            'internal_description',
+            'total_value',
+            'created_at',
+            'completed_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'completed_at']
+
+    def validate_linked_member_ids(self, value):
+        """Ensure all members exist and are active"""
+        if not value:
+            return []
+
+        try:
+            members = User.objects.filter(id__in=value, is_active=True)
+            if members.count() != len(value):
+                raise serializers.ValidationError("Um ou mais membros não foram encontrados ou estão inativos.")
+            return value
+        except Exception as e:
+            raise serializers.ValidationError(f"Erro ao validar membros: {str(e)}")
+
+    def validate_beneficiary_name(self, value):
+        """Ensure beneficiary name is not too short"""
+        if len(value.strip()) < 3:
+            raise serializers.ValidationError("O nome do beneficiário deve ter pelo menos 3 caracteres.")
+        return value.strip()
+
+    def validate_total_value(self, value):
+        """Ensure total value is positive"""
+        if value <= 0:
+            raise serializers.ValidationError("O valor total deve ser maior que zero.")
+        return value
+
+    def validate_title(self, value):
+        """Ensure title is not too short"""
+        if len(value.strip()) < 10:
+            raise serializers.ValidationError("O título deve ter pelo menos 10 caracteres.")
+        return value
+
+    def validate_public_description(self, value):
+        """Ensure public description is adequate"""
+        if len(value.strip()) < 30:
+            raise serializers.ValidationError("A descrição pública deve ter pelo menos 30 caracteres.")
+        return value
+
+    def create(self, validated_data):
+        """
+        Create direct donation case.
+        Sets status to 'completed' immediately and logs it.
+        """
+        request = self.context.get('request')
+        linked_member_ids = validated_data.pop('linked_member_ids', [])
+        beneficiary_name = validated_data.pop('beneficiary_name')
+
+        # Create case with completed status
+        from django.utils import timezone
+        case = AssistanceCase.objects.create(
+            beneficiary_name=beneficiary_name,
+            created_by=request.user,
+            reviewed_by=request.user,
+            status='completed',
+            approved_at=timezone.now(),
+            completed_at=timezone.now(),
+            **validated_data
+        )
+
+        # Link members if provided
+        if linked_member_ids:
+            members = User.objects.filter(id__in=linked_member_ids)
+            case.linked_members.set(members)
+
+        # Create timeline event
+        member_info = ""
+        if linked_member_ids:
+            member_names = ", ".join([m.get_full_name() for m in members])
+            member_info = f" vinculado aos membros: {member_names}"
+
+        CaseTimeline.objects.create(
+            case=case,
+            user=request.user,
+            event_type='case_created',
+            description=f'Doação direta criada pelo admin {request.user.get_full_name()} para {beneficiary_name}{member_info}'
+        )
+
+        return case
+
+
 class SubmitMemberProofSerializer(serializers.Serializer):
     """
     Serializer for member submitting application proof.

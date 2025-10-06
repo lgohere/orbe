@@ -5,6 +5,7 @@ Serializers for users app
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from django.contrib.auth import get_user_model
+from django.db import models
 from .models import UserProfile
 import requests
 import logging
@@ -35,6 +36,172 @@ class UserSerializer(serializers.ModelSerializer):
             'full_name', 'role', 'registration_method', 'is_active', 'date_joined', 'profile'
         ]
         read_only_fields = ['id', 'date_joined', 'is_active', 'registration_method']
+
+
+class UserAutocompleteSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for autocomplete/search fields"""
+    full_name = serializers.ReadOnlyField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'full_name']
+
+
+class MemberListSerializer(serializers.ModelSerializer):
+    """Serializer for member list with financial summary"""
+
+    profile = UserProfileSerializer(read_only=True)
+    full_name = serializers.ReadOnlyField()
+    financial_summary = serializers.SerializerMethodField()
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'full_name',
+            'role', 'role_display', 'is_active', 'date_joined',
+            'registration_method', 'profile', 'financial_summary'
+        ]
+
+    def get_financial_summary(self, obj):
+        """Get financial summary for member"""
+        from finance.models import MembershipFee, VoluntaryDonation
+        from django.db.models import Sum, Count, Q
+
+        # Membership fees summary
+        fees = MembershipFee.objects.filter(user=obj)
+        total_fees = fees.count()
+        paid_fees = fees.filter(status='paid').count()
+        pending_fees = fees.filter(status='pending').count()
+        overdue_fees = fees.filter(status='overdue').count()
+        total_fees_amount = fees.filter(status='paid').aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        # Voluntary donations summary
+        donations = VoluntaryDonation.objects.filter(donor=obj)
+        total_donations = donations.count()
+        total_donations_amount = donations.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        # Last payment date
+        last_payment = fees.filter(status='paid').order_by('-paid_at').first()
+        last_payment_date = last_payment.paid_at if last_payment else None
+
+        return {
+            'membership': {
+                'total_fees': total_fees,
+                'paid': paid_fees,
+                'pending': pending_fees,
+                'overdue': overdue_fees,
+                'total_amount_paid': float(total_fees_amount),
+                'last_payment_date': last_payment_date
+            },
+            'donations': {
+                'total_count': total_donations,
+                'total_amount': float(total_donations_amount)
+            },
+            'total_contributed': float(total_fees_amount + total_donations_amount)
+        }
+
+
+class MemberDetailSerializer(serializers.ModelSerializer):
+    """Detailed serializer for individual member"""
+
+    profile = UserProfileSerializer(read_only=True)
+    full_name = serializers.ReadOnlyField()
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+    financial_summary = serializers.SerializerMethodField()
+    membership_fees = serializers.SerializerMethodField()
+    donations = serializers.SerializerMethodField()
+    assistance_cases = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'full_name',
+            'role', 'role_display', 'is_active', 'date_joined',
+            'registration_method', 'profile', 'financial_summary',
+            'membership_fees', 'donations', 'assistance_cases'
+        ]
+
+    def get_financial_summary(self, obj):
+        """Get complete financial summary"""
+        from finance.models import MembershipFee, VoluntaryDonation
+        from django.db.models import Sum
+
+        # Membership fees
+        fees = MembershipFee.objects.filter(user=obj)
+        fees_paid = fees.filter(status='paid')
+        total_fees_amount = fees_paid.aggregate(total=Sum('amount'))['total'] or 0
+
+        # Donations
+        donations = VoluntaryDonation.objects.filter(donor=obj)
+        total_donations_amount = donations.aggregate(total=Sum('amount'))['total'] or 0
+
+        return {
+            'total_fees': fees.count(),
+            'paid_fees': fees_paid.count(),
+            'pending_fees': fees.filter(status='pending').count(),
+            'overdue_fees': fees.filter(status='overdue').count(),
+            'total_fees_amount': float(total_fees_amount),
+            'total_donations': donations.count(),
+            'total_donations_amount': float(total_donations_amount),
+            'total_contributed': float(total_fees_amount + total_donations_amount)
+        }
+
+    def get_membership_fees(self, obj):
+        """Get recent membership fees (last 12 months)"""
+        from finance.models import MembershipFee
+        from datetime import date, timedelta
+
+        one_year_ago = date.today() - timedelta(days=365)
+        fees = MembershipFee.objects.filter(
+            user=obj,
+            competency_month__gte=one_year_ago
+        ).order_by('-competency_month')[:12]
+
+        return [{
+            'id': fee.id,
+            'competency_month': fee.competency_month,
+            'amount': float(fee.amount),
+            'due_date': fee.due_date,
+            'status': fee.status,
+            'paid_at': fee.paid_at,
+            'reminder_sent_at': fee.reminder_sent_at
+        } for fee in fees]
+
+    def get_donations(self, obj):
+        """Get recent donations (last 10)"""
+        from finance.models import VoluntaryDonation
+
+        donations = VoluntaryDonation.objects.filter(donor=obj).order_by('-donated_at')[:10]
+
+        return [{
+            'id': donation.id,
+            'amount': float(donation.amount) if donation.amount else None,
+            'message': donation.message,
+            'donated_at': donation.donated_at,
+            'payment_proof': donation.payment_proof.url if donation.payment_proof else None
+        } for donation in donations]
+
+    def get_assistance_cases(self, obj):
+        """Get assistance cases for member"""
+        from assistance.models import AssistanceCase
+
+        cases = AssistanceCase.objects.filter(
+            models.Q(created_by=obj) | models.Q(linked_members=obj)
+        ).distinct().order_by('-created_at')[:5]
+
+        return [{
+            'id': case.id,
+            'title': case.title,
+            'status': case.status,
+            'total_value': float(case.total_value),
+            'created_at': case.created_at,
+            'approved_at': case.approved_at
+        } for case in cases]
 
 
 class CustomRegisterSerializer(RegisterSerializer):

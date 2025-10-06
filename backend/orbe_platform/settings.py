@@ -12,8 +12,12 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security Settings
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
+DEFAULT_SECRET_KEY = 'django-insecure-change-me-in-production'
+SECRET_KEY = config('SECRET_KEY', default=DEFAULT_SECRET_KEY)
 DEBUG = config('DEBUG', default=True, cast=bool)
+
+if not DEBUG and SECRET_KEY == DEFAULT_SECRET_KEY:
+    raise ValueError('SECRET_KEY must be provided via environment when DEBUG=False')
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Application definition
@@ -187,6 +191,15 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+]
+
+CSRF_EXEMPT_API_PATHS = [
+    '/api/auth/login/',
+    '/api/auth/logout/',
+    '/api/auth/registration/',
+    '/api/users/onboarding/',
+    '/api/users/invitations/validate-token/',
+    '/api/users/invitations/setup-password/',
 ]
 
 # Django Sites Framework

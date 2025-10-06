@@ -172,6 +172,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -265,20 +266,12 @@ onMounted(async () => {
   }
 
   try {
-    const response = await fetch('/api/users/invitations/validate-token/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ token })
-    })
+    const { data, error: apiError } = await apiService.validateInvitationToken(token)
 
-    const data = await response.json()
-
-    if (response.ok && data.valid) {
-      invitation.value = data.invitation
+    if (data && (data as any).valid) {
+      invitation.value = (data as any).invitation
     } else {
-      tokenError.value = data.errors?.token?.[0] || 'Token de convite inválido ou expirado.'
+      tokenError.value = apiError || (data as any)?.errors?.token?.[0] || 'Token de convite inválido ou expirado.'
     }
   } catch (err) {
     console.error('Error validating token:', err)

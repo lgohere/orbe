@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db import models
+from assistance.models import AssistanceCase
 from .models import MembershipFee, DonationRequest, VoluntaryDonation
 from .serializers import (
     MembershipFeeSerializer,
@@ -242,10 +243,7 @@ class DonationRequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsBoardOrAdmin])
     def approve(self, request, pk=None):
-        """
-        Approve a donation request.
-        TODO: Trigger signal to create AssistanceCase
-        """
+        """Approve a donation request and rely on workflow automation."""
         donation_request = self.get_object()
 
         if donation_request.status != 'pending_approval':
@@ -259,12 +257,19 @@ class DonationRequestViewSet(viewsets.ModelViewSet):
         donation_request.approved_at = timezone.now()
         donation_request.save()
 
-        # TODO: Signal will create AssistanceCase here
-
         serializer = self.get_serializer(donation_request)
+
+        assistance_case_id = None
+        try:
+            donation_request.refresh_from_db()
+            assistance_case_id = donation_request.assistance_case.id
+        except AssistanceCase.DoesNotExist:
+            pass
+
         return Response({
             **serializer.data,
-            'message': 'Donation request approved. AssistanceCase created (TODO).'
+            'message': 'Donation request approved successfully.',
+            'assistance_case_id': assistance_case_id,
         })
 
     @action(detail=True, methods=['post'], permission_classes=[IsBoardOrAdmin])

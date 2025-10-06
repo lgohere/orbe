@@ -382,6 +382,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 
 const authStore = useAuthStore()
 
@@ -497,15 +498,9 @@ async function loadProfile() {
   error.value = ''
 
   try {
-    const response = await fetch('/api/users/me/', {
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const { data, error: apiError } = await apiService.currentUser()
 
-    if (!response.ok) throw new Error('Failed to load profile')
-
-    const data = await response.json()
+    if (!data) throw new Error(apiError || 'Failed to load profile')
 
     personalData.value = {
       id: data.id,
@@ -546,33 +541,19 @@ async function savePersonalInfo() {
 
   try {
     // Update user first name and last name
-    const userResponse = await fetch('/api/users/me/', {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        first_name: personalData.value.first_name,
-        last_name: personalData.value.last_name
-      })
+    const userResponse = await apiService.patch('/users/me/', {
+      first_name: personalData.value.first_name,
+      last_name: personalData.value.last_name
     })
 
-    if (!userResponse.ok) throw new Error('Failed to update personal info')
+    if (userResponse.status >= 400) throw new Error(userResponse.error || 'Failed to update personal info')
 
     // Update phone in profile
-    const phoneResponse = await fetch('/api/users/preferences/', {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        phone: profileData.value.phone
-      })
+    const phoneResponse = await apiService.updatePreferences({
+      phone: profileData.value.phone
     })
 
-    if (!phoneResponse.ok) throw new Error('Failed to update phone')
+    if (phoneResponse.status >= 400) throw new Error(phoneResponse.error || 'Failed to update phone')
 
     successMessage.value = 'Informações pessoais atualizadas com sucesso!'
     showSuccess.value = true
@@ -592,21 +573,14 @@ async function saveAddress() {
   error.value = ''
 
   try {
-    const response = await fetch('/api/users/preferences/', {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        phone: profileData.value.phone,
-        city: profileData.value.city,
-        state: profileData.value.state,
-        country: profileData.value.country
-      })
+    const response = await apiService.updatePreferences({
+      phone: profileData.value.phone,
+      city: profileData.value.city,
+      state: profileData.value.state,
+      country: profileData.value.country
     })
 
-    if (!response.ok) throw new Error('Failed to update location')
+    if (response.status >= 400) throw new Error(response.error || 'Failed to update location')
 
     successMessage.value = 'Localidade atualizada com sucesso!'
     showSuccess.value = true
@@ -623,20 +597,13 @@ async function savePreferences() {
   error.value = ''
 
   try {
-    const response = await fetch('/api/users/preferences/', {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        theme_preference: profileData.value.theme_preference,
-        language_preference: profileData.value.language_preference,
-        membership_due_day: profileData.value.membership_due_day
-      })
+    const response = await apiService.updatePreferences({
+      theme_preference: profileData.value.theme_preference,
+      language_preference: profileData.value.language_preference,
+      membership_due_day: profileData.value.membership_due_day
     })
 
-    if (!response.ok) throw new Error('Failed to update preferences')
+    if (response.status >= 400) throw new Error(response.error || 'Failed to update preferences')
 
     successMessage.value = 'Preferências atualizadas com sucesso!'
     showSuccess.value = true
@@ -656,22 +623,14 @@ async function changePassword() {
   error.value = ''
 
   try {
-    const response = await fetch('/api/auth/password/change/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        old_password: passwordData.value.current_password,
-        new_password1: passwordData.value.new_password,
-        new_password2: passwordData.value.confirm_password
-      })
+    const response = await apiService.post('/auth/password/change/', {
+      old_password: passwordData.value.current_password,
+      new_password1: passwordData.value.new_password,
+      new_password2: passwordData.value.confirm_password
     })
 
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(data.old_password?.[0] || data.new_password1?.[0] || 'Erro ao alterar senha')
+    if (response.status >= 400) {
+      throw new Error(response.error || 'Erro ao alterar senha')
     }
 
     successMessage.value = 'Senha alterada com sucesso!'

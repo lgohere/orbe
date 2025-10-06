@@ -147,6 +147,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 
 interface FileAttachment {
   id?: number
@@ -288,27 +289,18 @@ async function uploadFiles(files: File[]) {
     let uploadedCount = 0
 
     for (const file of files) {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('case', props.caseId!.toString())
-
-      const response = await fetch('/api/assistance/attachments/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${authStore.token}`
-        },
-        body: formData
+      const response = await apiService.uploadAttachment({
+        case: props.caseId!,
+        attachment_type: props.attachmentType,
+        file
       })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(extractErrorMessage(data))
+      if (!response.data) {
+        throw new Error(response.error || 'Erro ao enviar arquivos')
       }
 
-      const attachment = await response.json()
-
       // Add to list
-      emit('update:modelValue', [...props.modelValue, attachment])
+      emit('update:modelValue', [...props.modelValue, response.data])
 
       uploadedCount++
       uploadProgress.value = Math.round((uploadedCount / totalFiles) * 100)
@@ -343,16 +335,10 @@ async function deleteFile() {
   error.value = ''
 
   try {
-    const response = await fetch(`/api/assistance/attachments/${fileToDelete.value.id}/`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.delete(`/assistance/attachments/${fileToDelete.value.id}/`)
 
-    if (!response.ok) {
-      const data = await response.json()
-      throw new Error(extractErrorMessage(data))
+    if (response.status >= 400) {
+      throw new Error(response.error || 'Erro ao excluir arquivo')
     }
 
     // Remove from list

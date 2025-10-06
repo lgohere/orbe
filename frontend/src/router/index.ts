@@ -82,6 +82,16 @@ const router = createRouter({
           }
         },
         {
+          path: 'cases/create-direct-donation',
+          name: 'case-create-direct-donation',
+          component: () => import('../views/cases/CreateDirectDonationView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresAdmin: true,
+            title: 'Nova Doação Direta'
+          }
+        },
+        {
           path: 'cases/:id',
           name: 'case-detail',
           component: () => import('../views/cases/CaseDetailView.vue'),
@@ -112,9 +122,10 @@ const router = createRouter({
         {
           path: 'members',
           name: 'members',
-          component: () => import('../views/DashboardView.vue'), // Placeholder - will create later
+          component: () => import('../views/members/MembersView.vue'),
           meta: {
             requiresAuth: true,
+            requiresAdmin: true,
             title: 'Membros'
           }
         },
@@ -191,6 +202,13 @@ router.beforeEach(async (to, from, next) => {
   const requiresBoard = to.meta.requiresBoard as boolean
   if (requiresBoard && !authStore.canCreateCases) {
     // Redirect non-Board users away from Board-only pages
+    next({ name: 'dashboard' })
+    return
+  }
+
+  const requiresAdmin = to.meta.requiresAdmin as boolean
+  if (requiresAdmin && authStore.user?.role !== 'SUPER_ADMIN') {
+    // Redirect non-Admin users away from Admin-only pages
     next({ name: 'dashboard' })
     return
   }

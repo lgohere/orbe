@@ -25,7 +25,8 @@ from .serializers import (
     BankInfoSerializer,
     ConfirmTransferSerializer,
     SubmitMemberProofSerializer,
-    CompleteCaseSerializer
+    CompleteCaseSerializer,
+    DirectDonationSerializer
 )
 from .permissions import CanCreateCase, CanApproveCase, CanEditCase
 
@@ -332,6 +333,39 @@ class AssistanceCaseViewSet(viewsets.ModelViewSet):
 
         serializer = AssistanceCaseListSerializer(cases, many=True, context={'request': request})
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, CanApproveCase])
+    def create_direct_donation(self, request):
+        """
+        Admin creates a direct donation case (bypasses member workflow).
+
+        This is for when the admin directly assists a member:
+        - No member proof submission needed
+        - Case goes straight to 'completed' status
+        - Admin uploads payment proof (PIX/transfer receipt)
+        - Admin uploads evidence photos
+
+        Request: POST /api/assistance/cases/create_direct_donation/
+        Body: {
+            "member_id": 123,
+            "title": "Título do caso",
+            "public_description": "Descrição pública...",
+            "internal_description": "Notas internas...",
+            "total_value": 500.00
+        }
+        Response: Created case data
+        """
+        serializer = DirectDonationSerializer(data=request.data, context={'request': request})
+
+        if serializer.is_valid():
+            case = serializer.save()
+            detail_serializer = AssistanceCaseDetailSerializer(case, context={'request': request})
+            return Response({
+                'message': 'Doação direta criada com sucesso! Agora anexe os comprovantes.',
+                'case': detail_serializer.data
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AttachmentViewSet(viewsets.ModelViewSet):

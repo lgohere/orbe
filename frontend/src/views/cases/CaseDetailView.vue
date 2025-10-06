@@ -432,6 +432,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 import { api } from '@/services/api'
 import BankInfoDialog from '@/components/assistance/BankInfoDialog.vue'
 import TransferProofDialog from '@/components/assistance/TransferProofDialog.vue'
@@ -505,22 +506,19 @@ async function loadCase() {
   error.value = ''
 
   try {
-    const response = await fetch(`/api/assistance/cases/${route.params.id}/`, {
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.get(`/assistance/cases/${route.params.id}/`)
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        error.value = 'Caso não encontrado'
-      } else {
-        error.value = 'Erro ao carregar caso'
-      }
+    if (response.status === 404) {
+      error.value = 'Caso não encontrado'
       return
     }
 
-    caseData.value = await response.json()
+    if (!response.data) {
+      error.value = response.error || 'Erro ao carregar caso'
+      return
+    }
+
+    caseData.value = response.data
   } catch (err) {
     console.error('Error loading case:', err)
     error.value = 'Erro ao carregar caso'
@@ -533,16 +531,10 @@ async function submitForApproval() {
   submitting.value = true
 
   try {
-    const response = await fetch(`/api/assistance/cases/${caseData.value.id}/submit/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.post(`/assistance/cases/${caseData.value.id}/submit/`)
 
-    if (!response.ok) {
-      const data = await response.json()
-      error.value = data.error || 'Erro ao enviar caso para aprovação'
+    if (response.status >= 400) {
+      error.value = response.error || 'Erro ao enviar caso para aprovação'
       return
     }
 
@@ -561,16 +553,10 @@ async function approveCase() {
   approving.value = true
 
   try {
-    const response = await fetch(`/api/assistance/cases/${caseData.value.id}/approve/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.post(`/assistance/cases/${caseData.value.id}/approve/`)
 
-    if (!response.ok) {
-      const data = await response.json()
-      error.value = data.error || 'Erro ao aprovar caso'
+    if (response.status >= 400) {
+      error.value = response.error || 'Erro ao aprovar caso'
       return
     }
 
@@ -590,20 +576,12 @@ async function rejectCase() {
   rejecting.value = true
 
   try {
-    const response = await fetch(`/api/assistance/cases/${caseData.value.id}/reject/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        rejection_reason: rejectionReason.value
-      })
+    const response = await apiService.post(`/assistance/cases/${caseData.value.id}/reject/`, {
+      rejection_reason: rejectionReason.value
     })
 
-    if (!response.ok) {
-      const data = await response.json()
-      error.value = data.rejection_reason?.[0] || data.error || 'Erro ao rejeitar caso'
+    if (response.status >= 400) {
+      error.value = response.error || 'Erro ao rejeitar caso'
       return
     }
 

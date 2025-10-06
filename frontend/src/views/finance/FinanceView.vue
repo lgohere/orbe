@@ -175,6 +175,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 import MembershipFeesTable from '@/components/finance/MembershipFeesTable.vue'
 import DonationsTable from '@/components/finance/DonationsTable.vue'
 import RequestDonationDialog from '@/components/donations/RequestDonationDialog.vue'
@@ -226,44 +227,35 @@ function formatCurrency(value: number): string {
 }
 
 async function loadFinanceData() {
-  console.log('[FinanceView] Starting loadFinanceData...')
   loading.value = true
   error.value = ''
 
   try {
-    console.log('[FinanceView] Calling Promise.all...')
     await Promise.all([
       loadMembershipFees(),
       loadDonations(),
       isStaff.value ? loadStats() : Promise.resolve()
     ])
-    console.log('[FinanceView] All data loaded successfully')
   } catch (err: any) {
     console.error('[FinanceView] Error loading finance data:', err)
     error.value = 'Erro ao carregar dados financeiros'
   } finally {
-    console.log('[FinanceView] Setting loading = false')
     loading.value = false
   }
 }
 
 async function loadMembershipFees() {
   try {
-    const endpoint = isStaff.value
-      ? '/api/finance/fees/'
-      : '/api/finance/fees/my_fees/'
+    const response = isStaff.value
+      ? await apiService.get<{ results?: any[] } | any[]>('/finance/fees/')
+      : await apiService.get<{ results?: any[] } | any[]>('/finance/fees/my_fees/')
 
-    const response = await fetch(endpoint, {
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    if (!response.data) {
+      throw new Error(response.error || 'Failed to load membership fees')
+    }
 
-    if (!response.ok) throw new Error('Failed to load membership fees')
-
-    const data = await response.json()
-    // Handle both array response and paginated response
-    membershipFees.value = Array.isArray(data) ? data : data.results || []
+    const payload = response.data
+    membershipFees.value = Array.isArray(payload) ? payload : payload.results || []
   } catch (err) {
     console.error('Error loading membership fees:', err)
     throw err
@@ -272,22 +264,16 @@ async function loadMembershipFees() {
 
 async function loadDonations() {
   try {
-    // NEW: Changed to use donation-requests endpoint
-    const endpoint = isStaff.value
-      ? '/api/finance/donation-requests/'
-      : '/api/finance/donation-requests/my_requests/'
+    const response = isStaff.value
+      ? await apiService.get<{ results?: any[] } | any[]>('/finance/donation-requests/')
+      : await apiService.get<{ results?: any[] } | any[]>('/finance/donation-requests/my_requests/')
 
-    const response = await fetch(endpoint, {
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    if (!response.data) {
+      throw new Error(response.error || 'Failed to load donations')
+    }
 
-    if (!response.ok) throw new Error('Failed to load donations')
-
-    const data = await response.json()
-    // Handle both array response and paginated response
-    donations.value = Array.isArray(data) ? data : data.results || []
+    const payload = response.data
+    donations.value = Array.isArray(payload) ? payload : payload.results || []
   } catch (err) {
     console.error('Error loading donations:', err)
     throw err
@@ -305,14 +291,9 @@ async function loadStats() {
       .filter(fee => fee.status === 'pending' || fee.status === 'overdue')
       .reduce((sum, fee) => sum + parseFloat(fee.amount), 0)
 
-    // NEW: Changed to use donation-requests stats endpoint
-    const response = await fetch('/api/finance/donation-requests/stats/', {
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.get<{ total_amount?: number }>('/finance/donation-requests/stats/')
 
-    if (!response.ok) {
+    if (!response.data) {
       console.warn('Failed to load donation stats, using default values')
       stats.value = {
         totalFees,
@@ -323,13 +304,11 @@ async function loadStats() {
       return
     }
 
-    const donationStats = await response.json()
-
     stats.value = {
       totalFees,
       paidFees,
       pendingFees,
-      totalDonations: donationStats.total_amount || 0
+      totalDonations: response.data.total_amount || 0
     }
   } catch (err) {
     console.error('Error loading stats:', err)
@@ -346,15 +325,9 @@ async function loadStats() {
 // Donation Actions
 async function handleApproveDonation(donation: any) {
   try {
-    const response = await fetch(`/api/finance/donation-requests/${donation.id}/approve/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
-    })
+    const response = await apiService.approveDonationRequest(donation.id)
 
-    if (!response.ok) throw new Error('Failed to approve donation')
+    if (!response.data) throw new Error(response.error || 'Failed to approve donation')
 
     // Reload data
     await loadFinanceData()
@@ -366,16 +339,9 @@ async function handleApproveDonation(donation: any) {
 
 async function handleRejectDonation(donation: any, reason: string) {
   try {
-    const response = await fetch(`/api/finance/donation-requests/${donation.id}/reject/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ rejection_reason: reason })
-    })
+    const response = await apiService.rejectDonationRequest(donation.id, reason)
 
-    if (!response.ok) throw new Error('Failed to reject donation')
+    if (!response.data) throw new Error(response.error || 'Failed to reject donation')
 
     // Reload data
     await loadFinanceData()
@@ -387,14 +353,9 @@ async function handleRejectDonation(donation: any, reason: string) {
 
 async function handleDeleteDonation(donation: any) {
   try {
-    const response = await fetch(`/api/finance/donation-requests/${donation.id}/`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.deleteDonationRequest(donation.id)
 
-    if (!response.ok) throw new Error('Failed to delete donation')
+    if (response.status >= 400) throw new Error(response.error || 'Failed to delete donation')
 
     // Reload data
     await loadFinanceData()

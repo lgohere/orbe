@@ -30,11 +30,20 @@ def create_assistance_case_on_approval(sender, instance, created, **kwargs):
         created: Boolean, True if new instance
         **kwargs: Additional keyword arguments
     """
-    # Only trigger if status changed to 'approved' and no case exists yet
-    if instance.status == 'approved' and not hasattr(instance, 'assistance_case'):
-        # Import here to avoid circular dependency
-        from assistance.models import AssistanceCase
+    if instance.status != 'approved':
+        return
 
+    # Import here to avoid circular dependency
+    from assistance.models import AssistanceCase
+
+    try:
+        instance.assistance_case
+        case_exists = True
+    except AssistanceCase.DoesNotExist:
+        case_exists = False
+
+    # Only trigger if status changed to 'approved' and no case exists yet
+    if not case_exists:
         # Create linked assistance case
         AssistanceCase.objects.create(
             # Link to the donation request

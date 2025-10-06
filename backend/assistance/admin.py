@@ -145,6 +145,39 @@ class CaseTimelineAdmin(admin.ModelAdmin):
     case_link.short_description = "Caso"
 
 
+class AssistanceCaseStatusFilter(admin.SimpleListFilter):
+    """Custom filter for case status with grouped categories"""
+    title = 'Status (Agrupado)'
+    parameter_name = 'status_group'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('draft', '📝 Rascunhos'),
+            ('pending', '⏳ Pendentes de Aprovação'),
+            ('in_progress', '🔄 Em Andamento'),
+            ('completed', '✅ Concluídos'),
+            ('rejected', '❌ Rejeitados'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'draft':
+            return queryset.filter(status='draft')
+        if self.value() == 'pending':
+            return queryset.filter(status='pending_approval')
+        if self.value() == 'in_progress':
+            return queryset.filter(status__in=[
+                'awaiting_bank_info',
+                'awaiting_transfer',
+                'awaiting_member_proof',
+                'pending_validation'
+            ])
+        if self.value() == 'completed':
+            return queryset.filter(status='completed')
+        if self.value() == 'rejected':
+            return queryset.filter(status='rejected')
+        return queryset
+
+
 @admin.register(AssistanceCase)
 class AssistanceCaseAdmin(admin.ModelAdmin):
     """Admin interface for assistance cases"""
@@ -162,7 +195,8 @@ class AssistanceCaseAdmin(admin.ModelAdmin):
     ]
 
     list_filter = [
-        'status',
+        AssistanceCaseStatusFilter,  # Custom grouped filter
+        'status',  # Detailed status
         'created_at',
         'approved_at',
         'created_by__role',
@@ -173,9 +207,13 @@ class AssistanceCaseAdmin(admin.ModelAdmin):
         'title',
         'public_description',
         'internal_description',
+        'beneficiary_name',
         'created_by__email',
         'created_by__first_name',
-        'created_by__last_name'
+        'created_by__last_name',
+        'member__email',
+        'member__first_name',
+        'member__last_name'
     ]
 
     readonly_fields = [
@@ -223,7 +261,11 @@ class AssistanceCaseAdmin(admin.ModelAdmin):
         colors = {
             'draft': '#6c757d',  # Gray
             'pending_approval': '#ffc107',  # Yellow
-            'approved': '#28a745',  # Green
+            'awaiting_bank_info': '#17a2b8',  # Cyan (info)
+            'awaiting_transfer': '#007bff',  # Blue
+            'awaiting_member_proof': '#6f42c1',  # Purple
+            'pending_validation': '#fd7e14',  # Orange
+            'completed': '#28a745',  # Green
             'rejected': '#dc3545'  # Red
         }
         return format_html(

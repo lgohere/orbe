@@ -5,38 +5,18 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-export interface User {
-  id: number
-  email: string
-  first_name: string
-  last_name: string
-  role: 'SUPER_ADMIN' | 'BOARD' | 'FISCAL_COUNCIL' | 'MEMBER'
-  profile: {
-    phone: string
-    city: string
-    state: string
-    country: string
-    membership_due_day: number
-    theme_preference: 'white' | 'black'
-    language_preference: 'pt-BR' | 'en' | 'es'
-    is_onboarding_completed: boolean
-  }
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface LoginResponse {
-  key: string  // DRF auth token
-  user: User
-}
+import {
+  apiService,
+  type User,
+  type LoginCredentials,
+  type RegistrationPayload,
+  type SetupPasswordPayload,
+  type UpdatePreferencesPayload,
+} from '@/services/api'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
-  const token = ref<string | null>(localStorage.getItem('auth_token'))
+  const token = ref<string | null>(apiService.getAuthToken())
   const user = ref<User | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
@@ -56,24 +36,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await fetch('/api/auth/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      })
+      const { data, error: apiError } = await apiService.login(credentials)
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        error.value = data.non_field_errors?.[0] || data.detail || 'Login failed'
+      if (!data) {
+        error.value = apiError || 'Login failed'
         return false
       }
 
-      // Store token
+      apiService.setAuthToken(data.key)
       token.value = data.key
-      localStorage.setItem('auth_token', data.key)
 
       // Fetch user data
       await fetchUser()
@@ -91,17 +62,12 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
 
     try {
-      const response = await fetch('/api/users/me/', {
-        headers: {
-          Authorization: `Token ${token.value}`,
-        },
-      })
+      const { data, error: apiError } = await apiService.currentUser()
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user')
+      if (!data) {
+        throw new Error(apiError || 'Failed to fetch user')
       }
 
-      const data = await response.json()
       user.value = data
     } catch (err) {
       console.error('Failed to fetch user:', err)
@@ -113,51 +79,33 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout(): Promise<void> {
     try {
       if (token.value) {
-        await fetch('/api/auth/logout/', {
-          method: 'POST',
-          headers: {
-            Authorization: `Token ${token.value}`,
-          },
-        })
+        await apiService.logout()
       }
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
       // Clear state regardless of API call success
+      apiService.setAuthToken(null)
       token.value = null
       user.value = null
       error.value = null
-      localStorage.removeItem('auth_token')
     }
   }
 
-  async function register(data: {
-    email: string
-    password1: string
-    password2: string
-  }): Promise<boolean> {
+  async function register(data: RegistrationPayload): Promise<boolean> {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await fetch('/api/auth/registration/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const { data: result, error: apiError } = await apiService.register(data)
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        error.value = result.email?.[0] || result.password1?.[0] || result.non_field_errors?.[0] || 'Registration failed'
+      if (!result) {
+        error.value = apiError || 'Registration failed'
         return false
       }
 
-      // Store token
+      apiService.setAuthToken(result.key)
       token.value = result.key
-      localStorage.setItem('auth_token', result.key)
 
       // Fetch user data
       await fetchUser()
@@ -171,40 +119,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function setupPassword(data: {
-    token: string
-    password: string
-    password_confirm: string
-  }): Promise<{ success: boolean; error?: string }> {
+  async function setupPassword(data: SetupPasswordPayload): Promise<{ success: boolean; error?: string }> {
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await fetch('/api/users/invitations/setup-password/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const { data: result, error: apiError } = await apiService.setupPassword(data)
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        const errorMsg = result.password?.[0] ||
-                        result.password_confirm?.[0] ||
-                        result.token?.[0] ||
-                        result.non_field_errors?.[0] ||
-                        'Erro ao criar conta'
+      if (!result) {
+        const errorMsg = apiError || 'Erro ao criar conta'
         error.value = errorMsg
         return { success: false, error: errorMsg }
       }
 
-      // Store token from response (auto-login)
+      apiService.setAuthToken(result.token)
       token.value = result.token
-      localStorage.setItem('auth_token', result.token)
-
-      // Store user data
       user.value = result.user
 
       return { success: true }
@@ -217,31 +146,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updatePreferences(preferences: {
-    theme_preference?: 'white' | 'black'
-    language_preference?: 'pt-BR' | 'en' | 'es'
-  }): Promise<boolean> {
+  async function updatePreferences(preferences: UpdatePreferencesPayload): Promise<boolean> {
     if (!token.value) return false
 
     try {
-      const response = await fetch('/api/users/preferences/', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Token ${token.value}`,
-        },
-        body: JSON.stringify(preferences),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to update preferences')
+      const { data, error: apiError } = await apiService.updatePreferences(preferences)
+      if (!data) {
+        throw new Error(apiError || 'Failed to update preferences')
       }
-
-      const data = await response.json()
       if (user.value) {
         user.value.profile = { ...user.value.profile, ...data }
       }
-
       return true
     } catch (err) {
       console.error('Failed to update preferences:', err)

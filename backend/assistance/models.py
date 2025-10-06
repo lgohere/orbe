@@ -105,6 +105,14 @@ class AssistanceCase(models.Model):
         help_text='Admin que validou o caso/comprovantes'
     )
 
+    linked_members = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='linked_assistance_cases',
+        verbose_name='Membros Vinculados',
+        help_text='Membros da ORBE vinculados ao caso (ex: quem intermediou, fez contato, etc.)'
+    )
+
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,

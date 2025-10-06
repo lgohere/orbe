@@ -8,15 +8,15 @@
           Gestão de casos de assistência social da ORBE
         </p>
       </v-col>
-      <v-col cols="12" md="4" class="d-flex align-center justify-end">
+      <v-col cols="12" md="4" class="d-flex align-center justify-end gap-2">
         <v-btn
-          v-if="canCreateCases"
-          color="primary"
+          v-if="authStore.user?.role === 'SUPER_ADMIN'"
+          color="success"
           size="large"
-          prepend-icon="mdi-plus"
-          @click="$router.push('/cases/create')"
+          prepend-icon="mdi-lightning-bolt"
+          @click="$router.push('/cases/create-direct-donation')"
         >
-          Novo Caso
+          Doação Direta
         </v-btn>
       </v-col>
     </v-row>
@@ -260,6 +260,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 
 interface Case {
   id: number
@@ -406,15 +407,11 @@ async function loadCases() {
     if (orderBy.value) params.append('ordering', orderBy.value)
     params.append('page', currentPage.value.toString())
 
-    const response = await fetch(`/api/assistance/cases/?${params}`, {
-      headers: {
-        'Authorization': `Token ${authStore.token}`
-      }
-    })
+    const response = await apiService.get<CasesResponse | { results: any[]; count: number }>(`/assistance/cases/?${params}`)
 
-    if (!response.ok) throw new Error('Failed to load cases')
+    if (!response.data) throw new Error(response.error || 'Failed to load cases')
 
-    const data: CasesResponse = await response.json()
+    const data = response.data as CasesResponse
     cases.value = data.results
     totalCount.value = data.count
     totalPages.value = Math.ceil(data.count / 20)
@@ -436,21 +433,15 @@ async function loadCases() {
 async function loadBasicStats() {
   try {
     // Load in_progress count (all except completed)
-    const inProgressResponse = await fetch(`/api/assistance/cases/?exclude_status=completed`, {
-      headers: { 'Authorization': `Token ${authStore.token}` }
-    })
-    if (inProgressResponse.ok) {
-      const inProgressData = await inProgressResponse.json()
-      stats.value.in_progress = inProgressData.count
+    const inProgressResponse = await apiService.get<{ count: number }>(`/assistance/cases/?exclude_status=completed`)
+    if (inProgressResponse.data) {
+      stats.value.in_progress = inProgressResponse.data.count
     }
 
     // Load completed count
-    const completedResponse = await fetch(`/api/assistance/cases/?status=completed`, {
-      headers: { 'Authorization': `Token ${authStore.token}` }
-    })
-    if (completedResponse.ok) {
-      const completedData = await completedResponse.json()
-      stats.value.completed = completedData.count
+    const completedResponse = await apiService.get<{ count: number }>(`/assistance/cases/?status=completed`)
+    if (completedResponse.data) {
+      stats.value.completed = completedResponse.data.count
     }
 
     // Update total
@@ -474,11 +465,8 @@ async function loadStats() {
 
     const counts = await Promise.all(
       statuses.map(async (status) => {
-        const response = await fetch(`/api/assistance/cases/?status=${status}`, {
-          headers: { 'Authorization': `Token ${authStore.token}` }
-        })
-        const data = await response.json()
-        return data.count
+        const response = await apiService.get<{ count: number }>(`/assistance/cases/?status=${status}`)
+        return response.data?.count ?? 0
       })
     )
 

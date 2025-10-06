@@ -9,6 +9,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'profiles', views.UserProfileViewSet, basename='userprofile')
 router.register(r'invitations', views.InvitationViewSet, basename='invitation')
+router.register(r'members', views.MemberViewSet, basename='member')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -143,20 +143,7 @@
       </v-list>
 
       <template v-slot:append>
-        <!-- Quick Actions -->
-        <div class="pa-4">
-          <v-btn
-            v-if="authStore.canCreateCases"
-            block
-            color="secondary"
-            variant="flat"
-            prepend-icon="mdi-plus"
-            size="large"
-            class="mb-2"
-          >
-            Novo Caso
-          </v-btn>
-        </div>
+        <!-- Quick Actions - Removed "Novo Caso" button -->
       </template>
     </v-navigation-drawer>
 
@@ -196,7 +183,7 @@ const menuItems = computed(() => {
   const items = [
     { path: '/dashboard', icon: 'mdi-view-dashboard-outline', title: 'Dashboard' },
     { path: '/finance', icon: 'mdi-wallet-outline', title: 'Finanças' },
-    { path: '/cases', icon: 'mdi-heart-outline', title: 'Casos' },
+    { path: '/cases', icon: 'mdi-heart-outline', title: 'Atendimentos' },
     { path: '/feed', icon: 'mdi-bulletin-board', title: 'Feed' },
     { path: '/members', icon: 'mdi-account-group-outline', title: 'Membros' },
   ]

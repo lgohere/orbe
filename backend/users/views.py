@@ -18,7 +18,10 @@ from .serializers import (
     InvitationCreateSerializer,
     InvitationSerializer,
     TokenValidationSerializer,
-    PasswordSetupSerializer
+    PasswordSetupSerializer,
+    MemberListSerializer,
+    MemberDetailSerializer,
+    UserAutocompleteSerializer
 )
 
 User = get_user_model()
@@ -199,6 +202,16 @@ class IsBoardOrAdmin(permissions.BasePermission):
         )
 
 
+class IsAdminOnly(permissions.BasePermission):
+    """Custom permission: Only Super Admin users"""
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.role == User.Role.SUPER_ADMIN
+        )
+
+
 class InvitationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing member invitations.
@@ -317,3 +330,248 @@ class InvitationViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ============================================================================
+# MEMBERS MANAGEMENT VIEWS (ADMIN ONLY)
+# ============================================================================
+
+class MemberViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for managing members (Admin only).
+
+    Endpoints:
+    - GET /api/users/members/ - List all members with financial summary
+    - GET /api/users/members/:id/ - Get detailed member info
+    - GET /api/users/members/stats/ - Get overall members statistics
+    """
+
+    permission_classes = [IsAdminOnly]
+
+    def get_queryset(self):
+        """
+        Get all users with optional filtering.
+
+        Query params:
+        - role: Filter by role (MEMBER, BOARD, FISCAL_COUNCIL, SUPER_ADMIN)
+        - is_active: Filter by active status (true/false)
+        - search: Search by name or email
+        - has_overdue: Filter members with overdue fees (true/false)
+        """
+        queryset = User.objects.select_related('profile').all()
+
+        # Filter by role
+        role = self.request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+
+        # Filter by active status
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+
+        # Search by name or email
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+
+        # Filter members with overdue fees
+        has_overdue = self.request.query_params.get('has_overdue')
+        if has_overdue and has_overdue.lower() == 'true':
+            from finance.models import MembershipFee
+            overdue_user_ids = MembershipFee.objects.filter(
+                status='overdue'
+            ).values_list('user_id', flat=True).distinct()
+            queryset = queryset.filter(id__in=overdue_user_ids)
+
+        return queryset.order_by('-date_joined')
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action"""
+        if self.action == 'retrieve':
+            return MemberDetailSerializer
+        return MemberListSerializer
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """
+        Get overall members statistics.
+
+        Returns:
+        - Total members
+        - Active/inactive members
+        - Members by role
+        - Financial overview
+        - Recent registrations
+        """
+        from finance.models import MembershipFee, VoluntaryDonation
+        from django.db.models import Sum, Count, Q
+        from datetime import date, timedelta
+
+        # Total members
+        total_members = User.objects.count()
+        active_members = User.objects.filter(is_active=True).count()
+        inactive_members = total_members - active_members
+
+        # Members by role
+        members_by_role = {}
+        for role_value, role_label in User.Role.choices:
+            count = User.objects.filter(role=role_value).count()
+            members_by_role[role_value] = {
+                'label': role_label,
+                'count': count
+            }
+
+        # Financial overview
+        total_fees_collected = MembershipFee.objects.filter(
+            status='paid'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+
+        total_donations_collected = VoluntaryDonation.objects.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
+        pending_fees_count = MembershipFee.objects.filter(status='pending').count()
+        overdue_fees_count = MembershipFee.objects.filter(status='overdue').count()
+
+        # Members with financial issues
+        members_with_overdue = User.objects.filter(
+            membership_fees__status='overdue'
+        ).distinct().count()
+
+        # Recent registrations (last 30 days)
+        thirty_days_ago = date.today() - timedelta(days=30)
+        recent_registrations = User.objects.filter(
+            date_joined__gte=thirty_days_ago
+        ).count()
+
+        # Registration method breakdown
+        registration_methods = {}
+        for method_value, method_label in User.RegistrationMethod.choices:
+            count = User.objects.filter(registration_method=method_value).count()
+            registration_methods[method_value] = {
+                'label': method_label,
+                'count': count
+            }
+
+        return Response({
+            'overview': {
+                'total_members': total_members,
+                'active_members': active_members,
+                'inactive_members': inactive_members,
+                'recent_registrations_30d': recent_registrations
+            },
+            'by_role': members_by_role,
+            'financial': {
+                'total_fees_collected': float(total_fees_collected),
+                'total_donations_collected': float(total_donations_collected),
+                'total_revenue': float(total_fees_collected + total_donations_collected),
+                'pending_fees_count': pending_fees_count,
+                'overdue_fees_count': overdue_fees_count,
+                'members_with_overdue': members_with_overdue
+            },
+            'registration_methods': registration_methods
+        })
+
+    @action(detail=True, methods=['patch'])
+    def update_role(self, request, pk=None):
+        """
+        Update member role.
+
+        Body: { "role": "BOARD" | "FISCAL_COUNCIL" | "MEMBER" | "SUPER_ADMIN" }
+        """
+        member = self.get_object()
+        new_role = request.data.get('role')
+
+        if not new_role:
+            return Response(
+                {'error': 'Role is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate role
+        valid_roles = [choice[0] for choice in User.Role.choices]
+        if new_role not in valid_roles:
+            return Response(
+                {'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Prevent changing own role
+        if member.id == request.user.id:
+            return Response(
+                {'error': 'Você não pode alterar sua própria role'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        old_role = member.role
+        member.role = new_role
+        member.save()
+
+        return Response({
+            'message': f'Role atualizada de {old_role} para {new_role}',
+            'member': MemberListSerializer(member).data
+        })
+
+    @action(detail=True, methods=['patch'])
+    def toggle_active(self, request, pk=None):
+        """
+        Activate/deactivate member account.
+        """
+        member = self.get_object()
+
+        # Prevent deactivating own account
+        if member.id == request.user.id:
+            return Response(
+                {'error': 'Você não pode desativar sua própria conta'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        member.is_active = not member.is_active
+        member.save()
+
+        action_text = 'ativada' if member.is_active else 'desativada'
+
+        return Response({
+            'message': f'Conta {action_text} com sucesso',
+            'member': MemberListSerializer(member).data
+        })
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def autocomplete(self, request):
+        """
+        Lightweight endpoint for autocomplete/search fields.
+        Returns only id, email, and full_name for quick lookups.
+
+        Query params:
+        - search: Search by name or email
+        - is_active: Filter by active status (default: true)
+        - limit: Max results (default: 20)
+        """
+        queryset = User.objects.all()
+
+        # Filter by active status (default to true)
+        is_active = request.query_params.get('is_active', 'true')
+        queryset = queryset.filter(is_active=is_active.lower() == 'true')
+
+        # Search by name or email
+        search = request.query_params.get('search', '')
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(email__icontains=search)
+            )
+
+        # Limit results
+        limit = int(request.query_params.get('limit', 20))
+        queryset = queryset[:limit]
+
+        serializer = UserAutocompleteSerializer(queryset, many=True)
+        return Response(serializer.data)

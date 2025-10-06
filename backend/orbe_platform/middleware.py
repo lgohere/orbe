@@ -2,6 +2,7 @@
 Custom middleware for ORBE Platform
 """
 
+from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 
 
@@ -15,5 +16,11 @@ class DisableCSRFForAPIMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         # Skip CSRF check for all /api/ endpoints
-        if request.path.startswith('/api/'):
+        if not request.path.startswith('/api/'):
+            return
+
+        token_header = request.META.get('HTTP_AUTHORIZATION')
+        exempt_paths = getattr(settings, 'CSRF_EXEMPT_API_PATHS', [])
+
+        if token_header or request.path in exempt_paths:
             setattr(request, '_dont_enforce_csrf_checks', True)
